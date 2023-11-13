@@ -3,7 +3,13 @@ package com.nyu.db.datamanager;
 import com.nyu.db.model.ReadOperation;
 import com.nyu.db.model.WriteOperation;
 
+import java.util.List;
+
 public interface DataManager {
+
+    public int getSiteId();
+
+    public List<Integer> getVariableIds();
 
     public int read(ReadOperation op);
 
@@ -14,4 +20,6 @@ public interface DataManager {
     public boolean canPreCommitTransaction(long transactionId);
 
     public boolean commitTransaction(long transactionId); // Commit the transaction
+
+    public boolean recover();
 }
