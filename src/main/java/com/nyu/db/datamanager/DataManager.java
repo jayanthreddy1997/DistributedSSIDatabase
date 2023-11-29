@@ -7,6 +7,8 @@ import java.util.List;
 
 public interface DataManager {
 
+    public void registerVariable(int variableId);
+
     public int getSiteId();
 
     public List<Integer> getVariableIds();
@@ -22,4 +24,7 @@ public interface DataManager {
     public boolean commitTransaction(long transactionId); // Commit the transaction
 
     public boolean recover();
+
+    public void dumpVariableValues();
+
 }

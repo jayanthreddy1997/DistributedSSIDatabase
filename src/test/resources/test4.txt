@@ -1,0 +1,15 @@
+// Test 4
+// Now T1 aborts, since site 2 died after T1 accessed it. T2 ok.
+// Normally, we wait till the end(T1) to abort T1.
+// However, it is ok to abort T1 right away when fail(2) happens. Both
+// are correct.
+begin(T1)
+begin(T2)
+W(T1,x1,5)
+fail(2)
+W(T2,x8,88)
+R(T2,x3)
+R(T1, x5)
+end(T2)
+recover(2)
+end(T1)

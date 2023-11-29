@@ -1,0 +1,14 @@
+// Test 9
+// T3 reads the original value of x4 (40).
+// T1 reads the original value of x2 as well (20), because that is the value
+// present when T1 began.
+begin(T3)
+begin(T1)
+begin(T2)
+W(T3,x2,22)
+W(T2,x4,44)
+R(T3,x4)
+end(T2)
+end(T3)
+R(T1,x2)
+end(T1)

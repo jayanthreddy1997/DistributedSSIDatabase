@@ -1,0 +1,9 @@
+// Test 12
+// both commit
+begin(T1)
+begin(T2)
+R(T1,x2)
+R(T2,x2)
+end(T1)
+W(T2,x2,10)
+end(T2)

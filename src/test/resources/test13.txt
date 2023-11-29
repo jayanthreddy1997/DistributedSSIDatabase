@@ -1,0 +1,11 @@
+// Test 13
+// Only T3 commits and final value of x2 is 10
+begin(T1)
+begin(T2)
+begin(T3)
+W(T3,x2,10)
+W(T2,x2,20)
+W(T1,x2,30)
+end(T3)
+end(T2)
+end(T1)
