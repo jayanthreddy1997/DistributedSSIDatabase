@@ -10,12 +10,10 @@ public class TransactionManagerImpl implements TransactionManager {
 
     // TODO: implement SSI graph
     private Map<Integer, DataManager> siteToDataManagerMap;
-    private Set<Integer> replicatedVariables;
     private Map<Integer, List<DataManager>> variableToDataManagerMap;
-
+    private Map<Long, Transaction> transactionStore; // transactionId to transaction object
+    private Set<Integer> replicatedVariables;
     private Map<Integer, Boolean> siteActiveStatus;
-
-    // TODO: Print every time a transaction waits because a site is down
     private Map<Integer, Queue<Operation>> waitingOperations; // Waiting operations on each site
 
     private void init() {
@@ -37,15 +35,16 @@ public class TransactionManagerImpl implements TransactionManager {
 
     @Override
     public Transaction createTransaction(long transactionId, long startTimestamp) {
-        return new Transaction(transactionId, startTimestamp, new ArrayList<>());
+        Transaction t = new Transaction(transactionId, startTimestamp, new ArrayList<>(), new HashMap<>());
+        this.transactionStore.put(transactionId, t);
+        return t;
     }
 
     @Override
     public void configureDataManagers(List<DataManager> dataManagers) {
         for (DataManager dm: dataManagers) {
             this.siteToDataManagerMap.put(dm.getSiteId(), dm);
-            List<Integer> variablesManaged = dm.getVariableIds();
-            for (Integer variableId: variablesManaged) {
+            for (Integer variableId: dm.getManagedVariableIds()) {
                 this.variableToDataManagerMap.get(variableId).add(dm);
             }
             this.siteActiveStatus.put(dm.getSiteId(), true);
@@ -61,36 +60,71 @@ public class TransactionManagerImpl implements TransactionManager {
      * Read a value from the database
      * If a transaction must read from a particular site and that site is down, the transaction will wait.
      * @param op Read Operation
-     * @return Integer value read from database
+     * @return Integer value read from database, None if operation put to wait
      */
     @Override
-    public int read(ReadOperation op) {
-        List<DataManager> availableDataManagers = this.variableToDataManagerMap.get(op.getVariableId());
-        if (availableDataManagers.isEmpty()) {
-            throw new RuntimeException("No active node available to serve this read request: "+op);
-        } else if (availableDataManagers.size() == 1) {
-            // Un-replicated variables
-            DataManager dm = availableDataManagers.get(0);
+    public Optional<Integer> read(ReadOperation op) {
+        List<DataManager> dataManagers = this.variableToDataManagerMap.get(op.getVariableId());
+        if (dataManagers.isEmpty()) {
+            throw new RuntimeException("No data node available to serve request: "+op);
+        }
+
+        Transaction transaction = this.transactionStore.get(op.getTransactionId());
+        if (transaction.getWrites().containsKey(op.getVariableId())) {
+            // Read value written inside same transaction if exists
+            // TODO: Is it ok for the transaction manager to serve reads? probably fine!
+            return Optional.of(transaction.getWrites().get(op.getVariableId()));
+        }
+
+        if (replicatedVariables.contains(op.getVariableId())) {
+            for (DataManager dm: dataManagers) {
+                if (siteActiveStatus.get(dm.getSiteId())) {
+                    Optional<Integer> val = dm.read(op, true);
+                    if (val.isPresent()) {
+                        return val;
+                    }
+                }
+            }
+        } else {
+            DataManager dm = dataManagers.get(0);
+
             if (this.siteActiveStatus.get(dm.getSiteId())) {
-                return dm.read(op);
+                return dm.read(op, false);
             } else {
                 // Wait for site to become available
                 this.waitingOperations.get(dm.getSiteId()).add(op);
             }
-        } else {
-            // TODO
         }
-        return 0;
+        return Optional.empty();
     }
 
     @Override
     public boolean write(WriteOperation op) {
-        return false;
+        List<DataManager> dataManagers = this.variableToDataManagerMap.get(op.getVariableId());
+        if (dataManagers.isEmpty()) {
+            throw new RuntimeException("No data node available to serve request: "+op);
+        }
+        boolean writeStatus = false;
+        if (replicatedVariables.contains(op.getVariableId())) {
+            for (DataManager dm: dataManagers) {
+                writeStatus = writeStatus || dm.write(op);
+            }
+        } else {
+            DataManager dm = dataManagers.get(0);
+            if (this.siteActiveStatus.get(dm.getSiteId())) {
+                writeStatus = dm.write(op);
+            } else {
+                // Wait for site to become available
+                this.waitingOperations.get(dm.getSiteId()).add(op);
+            }
+        }
+        return writeStatus;
     }
 
     @Override
     public void fail(int siteId) {
-
+        // TODO: Manage failure history
+        this.siteToDataManagerMap.get(siteId).fail();
     }
 
     @Override
@@ -100,7 +134,7 @@ public class TransactionManagerImpl implements TransactionManager {
 
     @Override
     public boolean commitTransaction(CommitOperation op) {
-        return false;
+        return true;
     }
 
     public void dumpVariableValues() {

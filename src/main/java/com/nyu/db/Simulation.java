@@ -15,6 +15,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 
 public class Simulation {
@@ -33,11 +34,11 @@ public class Simulation {
             if (variableId % 2 == 1) {
                 // Available only at one site
                 int siteId = 1 + variableId % NUM_SITES;
-                dataManagers.get(siteId-1).registerVariable(variableId);
+                dataManagers.get(siteId-1).registerVariable(variableId, variableId*10);
             } else {
                 // Available at all sites
                 for (DataManager dm: dataManagers) {
-                    dm.registerVariable(variableId);
+                    dm.registerVariable(variableId, variableId*10);
                 }
             }
         }
@@ -65,21 +66,25 @@ public class Simulation {
                         logger.error(errMsg);
                         throw new RuntimeException(errMsg);
                     }
-                    // TODO: Do I need to store active transactions, probably yes
                     this.transactionManager.createTransaction(Long.parseLong(transactionName.substring(1)), timeStamp);
                 } else if (token.startsWith("W")) {
                     long transactionId = Long.parseLong(params[0].trim().substring(1));
                     int variableId = Integer.parseInt(params[1].trim().substring(1));
                     int value = Integer.parseInt(params[2].trim());
                     WriteOperation op = new WriteOperation(transactionId, variableId, value, timeStamp);
-                    this.transactionManager.write(op);
-                    // TODO: Print sites affected by write
+                    boolean writeStatus = this.transactionManager.write(op);
+                    if (!writeStatus) {
+                        logger.info(String.format("W(T%d, x%d, %d) put on wait since site is down", transactionId, variableId, value));
+                    }
                 } else if (token.startsWith("R")) {
                     long transactionId = Long.parseLong(params[0].trim().substring(1));
                     int variableId = Integer.parseInt(params[1].trim().substring(1));
                     ReadOperation op = new ReadOperation(transactionId, variableId, timeStamp);
-                    int val = this.transactionManager.read(op);
-                    logger.info(String.format("x%d: %d (T%d)", variableId, val, transactionId));
+                    Optional<Integer> val = this.transactionManager.read(op);
+                    val.ifPresentOrElse(
+                        integer -> logger.info(String.format("x%d: %d (T%d)", variableId, integer, transactionId)),
+                        () -> logger.info(String.format("R(T%d, x%d) put on wait since site is down", transactionId, variableId))
+                    );
                 } else if (token.startsWith("end")) {
                     long transactionId = Long.parseLong(params[0].trim().substring(1));
                     CommitOperation op = new CommitOperation(transactionId, timeStamp);

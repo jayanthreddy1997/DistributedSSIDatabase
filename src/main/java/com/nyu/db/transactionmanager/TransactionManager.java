@@ -7,13 +7,14 @@ import com.nyu.db.model.Transaction;
 import com.nyu.db.model.WriteOperation;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface TransactionManager {
     public Transaction createTransaction(long transactionId, long startTimestamp);
 
     public void configureDataManagers(List<DataManager> dataManagers);
 
-    public int read(ReadOperation op);
+    public Optional<Integer> read(ReadOperation op);
 
     public boolean write(WriteOperation op);
 

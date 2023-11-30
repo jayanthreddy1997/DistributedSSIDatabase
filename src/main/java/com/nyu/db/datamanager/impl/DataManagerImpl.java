@@ -1,24 +1,41 @@
 package com.nyu.db.datamanager.impl;
 
+import com.nyu.db.Simulation;
 import com.nyu.db.datamanager.DataManager;
 import com.nyu.db.model.ReadOperation;
+import com.nyu.db.model.Variable;
 import com.nyu.db.model.WriteOperation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class DataManagerImpl implements DataManager {
-    // TODO: Complete implementation
+    /**
+     * Simple implementation of DataManger
+     * Does not involve Two phase commit
+     * Assumes committed data is persisted in stable storage
+     */
+    private static final Logger logger = LoggerFactory.getLogger(DataManagerImpl.class);
     private int siteId;
-    private List<Integer> managedVariables;
+    private boolean siteUp;
+
+    // Multiple versions of committed values for every variable
+    private Map<Integer, List<Variable>> committedVariables;
+
+    private Map<Long, Map<Integer, Integer>> transactionDataStore; // Uncommitted data for each transaction
+
     public DataManagerImpl(int siteId){
         this.siteId = siteId;
-        this.managedVariables = new ArrayList<>();
+        this.siteUp = true;
+        this.committedVariables = new HashMap<>();
     }
 
     @Override
-    public void registerVariable(int variableId) {
-        this.managedVariables.add(variableId);
+    public void registerVariable(int variableId, int initValue) {
+        List<Variable> versions = new ArrayList<>();
+        versions.add(new Variable(variableId, initValue, 0));
+        this.committedVariables.put(variableId, versions);
     }
 
     @Override
@@ -27,18 +44,38 @@ public class DataManagerImpl implements DataManager {
     }
 
     @Override
-    public List<Integer> getVariableIds() {
-        return this.managedVariables;
+    public Set<Integer> getManagedVariableIds() {
+        return this.committedVariables.keySet();
     }
 
     @Override
-    public int read(ReadOperation op) {
-        return 0;
+    public Optional<Integer> read(ReadOperation op, boolean runConsistencyChecks) {
+        if (runConsistencyChecks) {
+            // Check 1: Fail if site went down between last commit and beginning of current transaction
+            // Check 2: (Available Copies) Once a site goes down, dont respond to reads until we see a committed write
+            // TODO
+        } else {
+            // TODO: Change Operation to have reference to Transaction instead of just id
+            long transactionStartTime = op.getTransaction().getStartTimestamp();
+            List<Variable> versions = this.committedVariables.get(op.getVariableId());
+            int i=versions.size()-1;
+            while(i>0 && versions.get(i).getCommitTimestamp()>=transactionStartTime) {
+                i--;
+            }
+            return Optional.of(versions.get(i).getValue());
+        }
+        // TODO: cleanup
     }
 
     @Override
     public boolean write(WriteOperation op) {
-        return false;
+        if (!this.siteUp) {
+            return false;
+        }
+        Map<Integer, Integer> localStore = this.transactionDataStore.get(op.getTransactionId());
+        localStore.put(op.getVariableId(), op.getValue());
+        logger.info(String.format("T%d wrote %d to x%d on site %d", op.getTransactionId(), op.getValue(), op.getVariableId(), this.siteId));
+        return true;
     }
 
     @Override
@@ -57,12 +94,24 @@ public class DataManagerImpl implements DataManager {
     }
 
     @Override
+    public boolean fail() {
+        return false;
+    }
+
+    @Override
     public boolean recover() {
         return false;
     }
 
     @Override
     public void dumpVariableValues() {
-        // TODO: print variable values in sorted order on same line
+        List<Integer> variableIds = new ArrayList<>(this.getManagedVariableIds());
+        Collections.sort(variableIds);
+        for (int variableId: variableIds) {
+            List<Variable> versions = this.committedVariables.get(variableId);
+            int lastCommittedValue = versions.get(versions.size()-1).getValue();
+            System.out.printf("x%d: %d", variableId, lastCommittedValue);
+        }
+        System.out.println();
     };
 }
