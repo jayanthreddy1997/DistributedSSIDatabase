@@ -1,9 +1,8 @@
 package com.nyu.db.datamanager.impl;
 
-import com.nyu.db.Simulation;
 import com.nyu.db.datamanager.DataManager;
 import com.nyu.db.model.ReadOperation;
-import com.nyu.db.model.Variable;
+import com.nyu.db.model.VariableSnapshot;
 import com.nyu.db.model.WriteOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,21 +20,21 @@ public class DataManagerImpl implements DataManager {
     private boolean siteUp;
 
     // Multiple versions of committed values for every variable
-    private Map<Integer, List<Variable>> committedVariables;
+    private Map<Integer, List<VariableSnapshot>> committedSnapshots;
 
     private Map<Long, Map<Integer, Integer>> transactionDataStore; // Uncommitted data for each transaction
 
     public DataManagerImpl(int siteId){
         this.siteId = siteId;
         this.siteUp = true;
-        this.committedVariables = new HashMap<>();
+        this.committedSnapshots = new HashMap<>();
     }
 
     @Override
     public void registerVariable(int variableId, int initValue) {
-        List<Variable> versions = new ArrayList<>();
-        versions.add(new Variable(variableId, initValue, 0));
-        this.committedVariables.put(variableId, versions);
+        List<VariableSnapshot> versions = new ArrayList<>();
+        versions.add(new VariableSnapshot(variableId, initValue, 0));
+        this.committedSnapshots.put(variableId, versions);
     }
 
     @Override
@@ -45,7 +44,7 @@ public class DataManagerImpl implements DataManager {
 
     @Override
     public Set<Integer> getManagedVariableIds() {
-        return this.committedVariables.keySet();
+        return this.committedSnapshots.keySet();
     }
 
     @Override
@@ -57,7 +56,7 @@ public class DataManagerImpl implements DataManager {
         } else {
             // TODO: Change Operation to have reference to Transaction instead of just id
             long transactionStartTime = op.getTransaction().getStartTimestamp();
-            List<Variable> versions = this.committedVariables.get(op.getVariableId());
+            List<VariableSnapshot> versions = this.committedSnapshots.get(op.getVariableId());
             int i=versions.size()-1;
             while(i>0 && versions.get(i).getCommitTimestamp()>=transactionStartTime) {
                 i--;
@@ -70,7 +69,8 @@ public class DataManagerImpl implements DataManager {
     @Override
     public boolean write(WriteOperation op) {
         if (!this.siteUp) {
-            return false;
+            throw new RuntimeException("YOYOYOYOYO, somethings wrong");
+//            return false;
         }
         Map<Integer, Integer> localStore = this.transactionDataStore.get(op.getTransactionId());
         localStore.put(op.getVariableId(), op.getValue());
@@ -108,7 +108,7 @@ public class DataManagerImpl implements DataManager {
         List<Integer> variableIds = new ArrayList<>(this.getManagedVariableIds());
         Collections.sort(variableIds);
         for (int variableId: variableIds) {
-            List<Variable> versions = this.committedVariables.get(variableId);
+            List<VariableSnapshot> versions = this.committedSnapshots.get(variableId);
             int lastCommittedValue = versions.get(versions.size()-1).getValue();
             System.out.printf("x%d: %d", variableId, lastCommittedValue);
         }

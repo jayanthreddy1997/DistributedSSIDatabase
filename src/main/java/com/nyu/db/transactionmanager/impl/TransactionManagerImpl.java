@@ -10,6 +10,7 @@ public class TransactionManagerImpl implements TransactionManager {
 
     // TODO: implement SSI graph
     private Map<Integer, DataManager> siteToDataManagerMap;
+    private Map<Integer, List<Transaction>> siteToActiveWriteTransactions;
     private Map<Integer, List<DataManager>> variableToDataManagerMap;
     private Map<Long, Transaction> transactionStore; // transactionId to transaction object
     private Set<Integer> replicatedVariables;
@@ -35,7 +36,7 @@ public class TransactionManagerImpl implements TransactionManager {
 
     @Override
     public Transaction createTransaction(long transactionId, long startTimestamp) {
-        Transaction t = new Transaction(transactionId, startTimestamp, new ArrayList<>(), new HashMap<>());
+        Transaction t = new Transaction(transactionId, startTimestamp, new ArrayList<>());
         this.transactionStore.put(transactionId, t);
         return t;
     }
@@ -44,6 +45,7 @@ public class TransactionManagerImpl implements TransactionManager {
     public void configureDataManagers(List<DataManager> dataManagers) {
         for (DataManager dm: dataManagers) {
             this.siteToDataManagerMap.put(dm.getSiteId(), dm);
+            this.siteToActiveWriteTransactions.put(dm.getSiteId(), new ArrayList<>());
             for (Integer variableId: dm.getManagedVariableIds()) {
                 this.variableToDataManagerMap.get(variableId).add(dm);
             }
@@ -105,16 +107,19 @@ public class TransactionManagerImpl implements TransactionManager {
             throw new RuntimeException("No data node available to serve request: "+op);
         }
         boolean writeStatus = false;
-        if (replicatedVariables.contains(op.getVariableId())) {
-            for (DataManager dm: dataManagers) {
-                writeStatus = writeStatus || dm.write(op);
+        boolean currentWriteStatus;
+
+        for (DataManager dm: dataManagers) {
+            currentWriteStatus = dm.write(op);
+            if (currentWriteStatus) {
+                this.siteToActiveWriteTransactions.
             }
-        } else {
-            DataManager dm = dataManagers.get(0);
-            if (this.siteActiveStatus.get(dm.getSiteId())) {
-                writeStatus = dm.write(op);
-            } else {
-                // Wait for site to become available
+            writeStatus = writeStatus || currentWriteStatus;
+        }
+
+        if (!writeStatus) {
+            // Wait for site to become available
+            for (DataManager dm: dataManagers) {
                 this.waitingOperations.get(dm.getSiteId()).add(op);
             }
         }
@@ -124,6 +129,7 @@ public class TransactionManagerImpl implements TransactionManager {
     @Override
     public void fail(int siteId) {
         // TODO: Manage failure history
+        // Site goes down, immediately fail the transactions that wrote on that site!
         this.siteToDataManagerMap.get(siteId).fail();
     }
 

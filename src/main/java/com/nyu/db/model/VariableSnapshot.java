@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class Variable {
+public class VariableSnapshot {
     private int id;
     private int value;
     private long commitTimestamp;

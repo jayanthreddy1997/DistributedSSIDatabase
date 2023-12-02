@@ -10,5 +10,6 @@ import java.util.List;
 public class Transaction {
     private long transactionId;
     private long startTimestamp;
+    // TODO: check if necessary
     private List<Operation> operations;
 }
