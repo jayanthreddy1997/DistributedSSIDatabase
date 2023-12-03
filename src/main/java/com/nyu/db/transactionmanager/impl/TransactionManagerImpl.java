@@ -154,10 +154,10 @@ public class TransactionManagerImpl implements TransactionManager {
 
     @Override
     public void fail(int siteId) {
-        // TODO: Site goes down, immediately fail the transactions that wrote on that site!
         if (!this.siteActiveStatus.get(siteId)) {
             return;
         }
+        logger.info("Failing site "+siteId);
         this.siteActiveStatus.put(siteId, false);
         this.siteToDataManagerMap.get(siteId).fail();
         for (long transactionId: this.siteToActiveWriteTransactions.get(siteId)) {
@@ -178,13 +178,20 @@ public class TransactionManagerImpl implements TransactionManager {
             return false;
         }
         long transactionId = op.getTransaction().getTransactionId();
+        boolean precommitStatus = true;
         for (int site: this.siteToActiveWriteTransactions.keySet()) {
             if (this.siteToActiveWriteTransactions.get(site).contains(transactionId)) {
                 // Commit conditions have to succeed on every site, else abort
-                if (!this.siteToDataManagerMap.get(site).precommitTransaction(op)) {
-                    return false;
+                precommitStatus = precommitStatus && this.siteToDataManagerMap.get(site).precommitTransaction(op);
+                if (!precommitStatus) {
+                    break;
                 }
             }
+        }
+        if (!precommitStatus) {
+            logger.info("T"+transactionId+" aborts");
+            cleanupTransaction(transactionId);
+            return false;
         }
         // TODO: SSI checks
 
@@ -192,11 +199,14 @@ public class TransactionManagerImpl implements TransactionManager {
         for (int site: this.siteToActiveWriteTransactions.keySet()) {
             if (this.siteToActiveWriteTransactions.get(site).contains(transactionId)) {
                 commitStatus = commitStatus && this.siteToDataManagerMap.get(site).commitTransaction(op);
+                if (!commitStatus) {
+                    break;
+                }
             }
         }
 
+        logger.info("T"+transactionId+(commitStatus?" commits":" aborts"));
         cleanupTransaction(transactionId);
-
         return commitStatus;
     }
 

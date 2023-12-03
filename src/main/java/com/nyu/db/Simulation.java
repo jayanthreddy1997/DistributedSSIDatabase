@@ -90,8 +90,7 @@ public class Simulation {
                         this.transactionManager.read(op);
                     } else if (token.startsWith("end")) {
                         CommitOperation op = new CommitOperation(transaction, TimeManager.getTime());
-                        boolean status = this.transactionManager.commitTransaction(op);
-                        logger.info("T"+transactionId+(status?" commits":" aborts"));
+                        this.transactionManager.commitTransaction(op);
                     }
                 } else if (token.equals("dump()")) {
                     this.transactionManager.printCommittedState();
