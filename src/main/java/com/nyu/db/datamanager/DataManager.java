@@ -28,7 +28,7 @@ public interface DataManager {
 
     public void fail();
 
-    public void recover(long timestamp);
+    public void recover();
 
     public void printCommittedState();
 

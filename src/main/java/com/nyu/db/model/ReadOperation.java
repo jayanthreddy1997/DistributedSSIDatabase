@@ -10,4 +10,9 @@ public class ReadOperation extends Operation {
         super(transaction, timestamp, OperationType.READ);
         this.variableId = variableId;
     }
+
+    @Override
+    public String toString() {
+        return String.format("R(T%d, x%d)", this.getTransaction().getTransactionId(), variableId);
+    }
 }

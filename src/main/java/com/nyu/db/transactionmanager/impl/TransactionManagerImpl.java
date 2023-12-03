@@ -1,14 +1,18 @@
 package com.nyu.db.transactionmanager.impl;
 
+import com.nyu.db.Simulation;
 import com.nyu.db.datamanager.DataManager;
 import com.nyu.db.model.*;
 import com.nyu.db.transactionmanager.TransactionManager;
 import com.nyu.db.utils.TimeManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
 public class TransactionManagerImpl implements TransactionManager {
 
+    private static final Logger logger = LoggerFactory.getLogger(TransactionManagerImpl.class);
     private Map<Integer, DataManager> siteToDataManagerMap;
     private Map<Integer, List<DataManager>> variableToDataManagerMap;
     private Map<Long, Transaction> transactionStore; // transactionId to transaction object
@@ -18,6 +22,7 @@ public class TransactionManagerImpl implements TransactionManager {
 
     // Store all active transactions that have had write on each site
     private Map<Integer, Set<Long>> siteToActiveWriteTransactions;
+    private Set<Long> activeTransactions;
 
     private void init() {
         this.siteToDataManagerMap = new HashMap<>();
@@ -27,6 +32,7 @@ public class TransactionManagerImpl implements TransactionManager {
         this.waitingOperations = new HashMap<>();
         this.siteToActiveWriteTransactions = new HashMap<>();
         this.transactionStore = new HashMap<>();
+        this.activeTransactions = new HashSet<>();
     }
 
     public TransactionManagerImpl() {
@@ -42,6 +48,7 @@ public class TransactionManagerImpl implements TransactionManager {
     public Transaction createTransaction(long transactionId) {
         Transaction t = new Transaction(transactionId, TimeManager.getTime(), new ArrayList<>());
         this.transactionStore.put(transactionId, t);
+        this.activeTransactions.add(transactionId);
         return t;
     }
 
@@ -73,6 +80,9 @@ public class TransactionManagerImpl implements TransactionManager {
      */
     @Override
     public Optional<Integer> read(ReadOperation op) {
+        if (!this.checkTransactionActive(op)) {
+            return Optional.empty();
+        }
         List<DataManager> dataManagers = this.variableToDataManagerMap.get(op.getVariableId());
         if (dataManagers.isEmpty()) {
             throw new RuntimeException("No data node available to serve request: "+op);
@@ -102,11 +112,18 @@ public class TransactionManagerImpl implements TransactionManager {
                 this.waitingOperations.get(dm.getSiteId()).add(op);
             }
         }
+        val.ifPresentOrElse(
+            varVal -> logger.info(String.format("x%d: %d (T%d)", op.getVariableId(), varVal, op.getTransaction().getTransactionId())),
+            () -> logger.info(String.format(op + " put on wait since site is down"))
+        );
         return val;
     }
 
     @Override
     public boolean write(WriteOperation op) {
+        if (!this.checkTransactionActive(op)) {
+            return false;
+        }
         List<DataManager> dataManagers = this.variableToDataManagerMap.get(op.getVariableId());
         if (dataManagers.isEmpty()) {
             throw new RuntimeException("No data node available to serve request: "+op);
@@ -128,6 +145,7 @@ public class TransactionManagerImpl implements TransactionManager {
             for (DataManager dm: dataManagers) {
                 this.waitingOperations.get(dm.getSiteId()).add(op);
             }
+            logger.info(String.format(op + " put on wait since site is down"));
         } else {
             op.setExecutedTimestamp(TimeManager.getTime());
         }
@@ -136,11 +154,16 @@ public class TransactionManagerImpl implements TransactionManager {
 
     @Override
     public void fail(int siteId) {
-        // TODO: Manage failure history
         // TODO: Site goes down, immediately fail the transactions that wrote on that site!
-        if (this.siteActiveStatus.get(siteId)) {
-            this.siteActiveStatus.put(siteId, false);
-            this.siteToDataManagerMap.get(siteId).fail();
+        if (!this.siteActiveStatus.get(siteId)) {
+            return;
+        }
+        this.siteActiveStatus.put(siteId, false);
+        this.siteToDataManagerMap.get(siteId).fail();
+        for (long transactionId: this.siteToActiveWriteTransactions.get(siteId)) {
+            logger.info(String.format("Aborting T%d since it wrote to site %d that went down before T%d committed",
+                    transactionId, siteId, transactionId));
+            this.abortTransaction(transactionId);
         }
     }
 
@@ -151,9 +174,12 @@ public class TransactionManagerImpl implements TransactionManager {
 
     @Override
     public boolean commitTransaction(CommitOperation op) {
-
+        if (!this.checkTransactionActive(op)) {
+            return false;
+        }
+        long transactionId = op.getTransaction().getTransactionId();
         for (int site: this.siteToActiveWriteTransactions.keySet()) {
-            if (this.siteToActiveWriteTransactions.get(site).contains(op.getTransaction().getTransactionId())) {
+            if (this.siteToActiveWriteTransactions.get(site).contains(transactionId)) {
                 // Commit conditions have to succeed on every site, else abort
                 if (!this.siteToDataManagerMap.get(site).precommitTransaction(op)) {
                     return false;
@@ -164,12 +190,33 @@ public class TransactionManagerImpl implements TransactionManager {
 
         boolean commitStatus = true;
         for (int site: this.siteToActiveWriteTransactions.keySet()) {
-            if (this.siteToActiveWriteTransactions.get(site).contains(op.getTransaction().getTransactionId())) {
+            if (this.siteToActiveWriteTransactions.get(site).contains(transactionId)) {
                 commitStatus = commitStatus && this.siteToDataManagerMap.get(site).commitTransaction(op);
             }
         }
 
+        cleanupTransaction(transactionId);
+
         return commitStatus;
+    }
+
+    private void abortTransaction(long transactionId) {
+        logger.info("T"+transactionId+" aborts");
+        // TODO: Cleanup on data-managers, etc
+        this.cleanupTransaction(transactionId);
+    }
+
+    private void cleanupTransaction(long transactionId) {
+        this.activeTransactions.remove(transactionId);
+        this.siteToActiveWriteTransactions.forEach((siteId, activeTransactions) -> activeTransactions.remove(transactionId));
+    }
+
+    private boolean checkTransactionActive(Operation op) {
+        if (!this.activeTransactions.contains(op.getTransaction().getTransactionId())) {
+            logger.warn(op + " received operation on transaction that has either already aborted or committed");
+            return false;
+        }
+        return true;
     }
 
     public void printCommittedState() {

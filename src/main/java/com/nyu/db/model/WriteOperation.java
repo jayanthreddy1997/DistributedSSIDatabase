@@ -12,4 +12,9 @@ public class WriteOperation extends Operation {
         this.variableId = variableId;
         this.value = value;
     }
+
+    @Override
+    public String toString() {
+        return String.format("W(T%d, x%d, %d)", this.getTransaction().getTransactionId(), variableId, value);
+    }
 }

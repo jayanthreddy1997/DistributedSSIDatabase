@@ -158,11 +158,12 @@ public class DataManagerImpl implements DataManager {
         // Flush local store
         this.transactionDataStore.clear();
         this.siteUp = false;
+        this.downTimes.add(TimeManager.getTime());
     }
 
     @Override
-    public void recover(long timestamp) {
-        this.bootTimes.add(timestamp);
+    public void recover() {
+        this.bootTimes.add(TimeManager.getTime());
         this.siteUp = true;
     }
 
