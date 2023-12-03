@@ -1,0 +1,30 @@
+// Test 25
+// T3 must wait for site 2 because site 2 is the only site that
+// has a commit on x8 before begin(T3) and was up continuously
+// from that commit to begin(T3)
+begin(T1)
+begin(T2)
+fail(3)
+fail(4)
+R(T1,x1)
+W(T2,x8,88)
+end(T1)
+recover(4)
+recover(3)
+R(T2,x3)
+end(T2)
+fail(1)
+fail(5)
+fail(6)
+fail(7)
+fail(8)
+fail(9)
+fail(10)
+begin(T3)
+fail(2)
+begin(T4)
+W(T4,x8,99)
+end(T4)
+R(T3,x8)                               // T3 should now wait for site 2
+recover(2)                            // T3 will be unblocked here
+end(T3)

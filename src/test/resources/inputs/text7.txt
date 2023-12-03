@@ -1,0 +1,12 @@
+// Test 7
+// T2 should read the initial version of x3 (value 30)
+// based on multiversion read
+// consistency which is part of snapshot isolation
+begin(T1)
+begin(T2)
+R(T2,x1)
+R(T2,x2)
+W(T1,x3,33)
+end(T1)
+R(T2,x3)
+end(T2)

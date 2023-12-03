@@ -1,0 +1,28 @@
+// Test 19
+// An almost circular RW cycle  scenario with failures.
+// T3 fails (T2 and T4 do not fail because the site is up when they execute)
+// because site 4 fails.
+// All others succeed.
+
+begin(T1)
+begin(T2)
+begin(T3)
+begin(T4)
+begin(T5)
+W(T3,x3,300)
+fail(4)
+recover(4)
+R(T4,x4)
+R(T5,x5)
+R(T1,x6)
+R(T2,x2)
+W(T1,x2,10)
+W(T2,x3,20)
+W(T3,x4,30)
+W(T5,x1,50)
+end(T5)
+W(T4,x5,40)
+end(T4)
+end(T3)
+end(T2)
+end(T1)

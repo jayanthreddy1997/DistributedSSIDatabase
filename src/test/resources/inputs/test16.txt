@@ -1,0 +1,15 @@
+// Test 16
+// T1 reads x2=22
+// R(T3,x4) also reads 40
+
+begin(T3)
+begin(T2)
+W(T3,x2,22)
+W(T2,x4,44)
+R(T3,x4)
+end(T2)
+end(T3)
+begin(T1)
+R(T1,x2)
+end(T1)
+

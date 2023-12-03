@@ -1,0 +1,26 @@
+
+// Test 15
+
+// T1 will abort because x4 is on site 2 and  so
+// site 2 was accessed by T1 and then site 2 failed.
+// T2 will be fine but the T3, T4, and T5 will abort
+// because of first committer wins.
+// Final value of x4 is 44.
+
+begin(T5)
+begin(T4)
+begin(T3)
+begin(T2)
+begin(T1)
+W(T1,x4, 5)
+fail(2)
+W(T2,x4,44)
+recover(2)
+W(T3,x4,55)
+W(T4,x4,66)
+W(T5,x4,77)
+end(T1)
+end(T2)
+end(T3)
+end(T4)
+end(T5)

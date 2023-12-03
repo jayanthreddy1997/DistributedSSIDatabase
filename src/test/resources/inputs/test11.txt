@@ -1,0 +1,9 @@
+// Test 11
+// All should commit
+begin(T1)
+begin(T2)
+R(T1,x2)
+R(T2,x2)
+W(T2,x2,10)
+end(T1)
+end(T2)

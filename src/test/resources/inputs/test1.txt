@@ -1,0 +1,13 @@
+// Test 1.
+// T1 should abort, T2 should not, because T2 committed first
+// and they both wrote x1 and x2.
+
+begin(T1)
+begin(T2)
+W(T1,x1,101)
+W(T2,x2,202)
+W(T1,x2,102)
+W(T2,x1,201)
+end(T2)
+end(T1)
+dump()

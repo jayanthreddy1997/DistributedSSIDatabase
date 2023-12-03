@@ -1,0 +1,14 @@
+
+// Test 22
+begin(T1)
+begin(T2)
+W(T1, x2, 80)
+W(T1, x4, 50)
+R(T2, x4)
+end(T1) // T1 commits [ T2 -- rw --> T1 ]
+W(T2, x6, 90)
+begin(T3)
+R(T3, x6)
+W(T3, x2, 70)
+end(T2) // T2 commits [T3 -- rw --> T2 -- rw --> T1]
+end(T3) // T3 aborts [attempts to add edge T1 --- ww --> T3, creating a cycle hence aborts]

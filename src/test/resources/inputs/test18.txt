@@ -1,0 +1,27 @@
+// Test 18
+// A circular conflict scenario where every edge is a RW edge.
+// Aborting any of these transactions will break the cycle.
+// Since T5 closes the cycle, it will abort and all others will succeed.
+// End state should reflect this.
+
+begin(T1)
+begin(T2)
+begin(T3)
+begin(T4)
+begin(T5)
+R(T4,x4)
+R(T5,x5)
+R(T1,x1)
+W(T1,x2,10)
+R(T2,x2)
+W(T2,x3,20)
+R(T3,x3)
+W(T3,x4,30)
+W(T4,x5,40)
+W(T5,x1,50)
+end(T4)
+end(T3)
+end(T2)
+end(T1)
+end(T5) // T5 aborts here
+

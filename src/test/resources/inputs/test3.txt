@@ -1,0 +1,16 @@
+// Test 3
+// T1 should not abort because its site did not fail.
+// In fact all transactions commit
+// x8 has the value 88 at every site except site 2 where it won't have
+// the correct value right away but must wait for a write to take place.
+// All reads on x3 return 30.
+begin(T1)
+begin(T2)
+R(T1,x3)
+fail(2)
+W(T2,x8,88)
+R(T2,x3)
+W(T1, x5,91)
+end(T2)
+recover(2)
+end(T1)

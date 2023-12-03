@@ -1,0 +1,20 @@
+// Test 3.7
+// T1 should not abort because site 4 did not fail.
+// In this case, T1 will write to x4 on every site.
+// x8 will not value 88 because T2 aborts
+// the correct value right away but must wait for a write to take place.
+// So W(T2,x8,88)
+// will not commit and is lost on failure.
+// Even though site 2 recovers before T2, T2 will not retroactively
+// write to the site (in any practical version of available copies).
+// T2 aborts because it wrote to x8.
+begin(T1)
+begin(T2)
+R(T1,x3)
+W(T2,x8,88)
+fail(2)
+R(T2,x3)
+recover(2)
+W(T1, x4,91)
+end(T2)
+end(T1)

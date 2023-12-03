@@ -6,8 +6,8 @@ import lombok.Getter;
 public class ReadOperation extends Operation {
     private final int variableId;
 
-    public ReadOperation(int variableId, long timestamp, long transactionId) {
-        super(timestamp, transactionId, OperationType.READ);
+    public ReadOperation(Transaction transaction, int variableId, long timestamp) {
+        super(transaction, timestamp, OperationType.READ);
         this.variableId = variableId;
     }
 }

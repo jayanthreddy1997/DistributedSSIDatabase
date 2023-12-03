@@ -1,0 +1,11 @@
+// Test 20
+// T2 aborts, T1 succeeds
+
+begin(T1)
+begin(T2)
+R(T2, x2)
+W(T1, x2, 202)
+W(T2, x2, 302)
+end(T1)
+end(T2)
+dump()
