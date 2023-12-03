@@ -6,7 +6,7 @@
 // T1's write will not go to site 2, so every site except site 2
 // will have x4 equal to 91
 // T2
-// will not commit and W(T2,x8,88) is lost on failure.
+// will not commit and W(T2,x8,88) is lost because of the abort.
 // Therefore x8 will not have value 88 because T2 aborts.
 // Even though site 2 recovers before T2 ends, T2 will not retroactively
 // write to the site (in any practical version of available copies).

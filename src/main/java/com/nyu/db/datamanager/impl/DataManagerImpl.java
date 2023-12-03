@@ -2,6 +2,7 @@ package com.nyu.db.datamanager.impl;
 
 import com.nyu.db.datamanager.DataManager;
 import com.nyu.db.model.*;
+import com.nyu.db.utils.TimeManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,9 +125,33 @@ public class DataManagerImpl implements DataManager {
         return false;
     }
 
+    /**
+     * Abort conditions:
+     * - Case 1: First Committer wins - Abort if some data item x that T1 has written has also been committed by
+     *           some other transaction T2 since T1 began
+     * - Case 2:
+     * - Case 3:
+     *
+     */
     @Override
-    public boolean commitTransaction(long transactionId) {
-        return false;
+    public boolean commitTransaction(CommitOperation op) {
+        boolean commitStatus = true;
+        long transactionStartTime = op.getTransaction().getStartTimestamp();
+        Map<Integer, Integer> transactionWorkspace = this.transactionDataStore.get(op.getTransaction().getTransactionId());
+        for (int variableId: transactionWorkspace.keySet()) {
+            long lastCommittedTimestamp = this.committedSnapshots.get(variableId).get(this.committedSnapshots.get(variableId).size()-1).getCommitTimestamp();
+            if (lastCommittedTimestamp > transactionStartTime) {
+                commitStatus = false;
+                break;
+            }
+        }
+
+        if (commitStatus) {
+            transactionWorkspace.forEach((variableId, value) -> this.committedSnapshots.get(variableId).add(new VariableSnapshot(variableId, value, TimeManager.getTime())));
+            op.setExecutedTimestamp(TimeManager.getTime());
+        }
+        this.transactionDataStore.remove(op.getTransaction().getTransactionId());
+        return commitStatus;
     }
 
     @Override
@@ -149,7 +174,7 @@ public class DataManagerImpl implements DataManager {
         for (int variableId: variableIds) {
             List<VariableSnapshot> versions = this.committedSnapshots.get(variableId);
             int lastCommittedValue = versions.get(versions.size()-1).getValue();
-            System.out.printf("x%d: %d", variableId, lastCommittedValue);
+            System.out.printf("x%d: %d, ", variableId, lastCommittedValue);
         }
         System.out.println();
     };

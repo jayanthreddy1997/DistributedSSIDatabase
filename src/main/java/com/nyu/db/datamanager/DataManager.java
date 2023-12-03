@@ -1,5 +1,6 @@
 package com.nyu.db.datamanager;
 
+import com.nyu.db.model.CommitOperation;
 import com.nyu.db.model.ReadOperation;
 import com.nyu.db.model.WriteOperation;
 
@@ -21,7 +22,7 @@ public interface DataManager {
 
     public boolean abort(long transactionId);
 
-    public boolean commitTransaction(long transactionId); // Commit the transaction
+    public boolean commitTransaction(CommitOperation op);
 
     public void fail();
 

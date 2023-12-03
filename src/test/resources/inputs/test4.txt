@@ -5,7 +5,7 @@
 // are correct.
 begin(T1)
 begin(T2)
-W(T1,x1,5)
+W(T1,x1,512)
 fail(2)
 W(T2,x8,88)
 R(T2,x3)

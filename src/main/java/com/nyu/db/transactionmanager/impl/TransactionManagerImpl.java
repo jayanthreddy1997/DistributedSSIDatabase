@@ -18,7 +18,7 @@ public class TransactionManagerImpl implements TransactionManager {
     private Map<Integer, Queue<Operation>> waitingOperations; // Waiting operations on each site
 
     // Store all active transactions that have had write on each site
-    private Map<Integer, Set<Transaction>> siteToActiveWriteTransactions;
+    private Map<Integer, Set<Long>> siteToActiveWriteTransactions;
 
     private void init() {
         this.siteToDataManagerMap = new HashMap<>();
@@ -118,8 +118,8 @@ public class TransactionManagerImpl implements TransactionManager {
         for (DataManager dm: dataManagers) {
             currentWriteStatus = dm.write(op);
             if (currentWriteStatus) {
-                Set<Transaction> activeTransactions = this.siteToActiveWriteTransactions.get(dm.getSiteId());
-                activeTransactions.add(op.getTransaction());
+                Set<Long> activeTransactions = this.siteToActiveWriteTransactions.get(dm.getSiteId());
+                activeTransactions.add(op.getTransaction().getTransactionId());
             }
             writeStatus = writeStatus || currentWriteStatus;
         }
@@ -152,7 +152,17 @@ public class TransactionManagerImpl implements TransactionManager {
 
     @Override
     public boolean commitTransaction(CommitOperation op) {
-        return true;
+        // TODO: Do we queue in any case?
+
+        boolean commitStatus = true;
+        for (int site: this.siteToActiveWriteTransactions.keySet()) {
+            if (this.siteToActiveWriteTransactions.get(site).contains(op.getTransaction().getTransactionId())) {
+                // Commit has to succeed on every site, else abort // TODO: think if condition is correct
+                commitStatus = commitStatus && this.siteToDataManagerMap.get(site).commitTransaction(op);
+            }
+        }
+
+        return commitStatus;
     }
 
     public void dumpVariableValues() {
