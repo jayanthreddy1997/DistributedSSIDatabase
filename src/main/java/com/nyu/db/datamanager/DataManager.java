@@ -14,6 +14,7 @@ public interface DataManager {
 
     public Set<Integer> getManagedVariableIds();
 
+    public Optional<Integer> read(ReadOperation op);
     public Optional<Integer> read(ReadOperation op, boolean runConsistencyChecks);
 
     public boolean write(WriteOperation op);

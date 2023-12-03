@@ -48,22 +48,28 @@ public class DataManagerImpl implements DataManager {
     }
 
     @Override
+    public Optional<Integer> read(ReadOperation op) {
+        return read(op, true);
+    }
+
+    @Override
     public Optional<Integer> read(ReadOperation op, boolean runConsistencyChecks) {
         if (runConsistencyChecks) {
-            // Check 1: Fail if site went down between last commit and beginning of current transaction
-            // Check 2: (Available Copies) Once a site goes down, dont respond to reads until we see a committed write
-            // TODO
-        } else {
-            // TODO: Change Operation to have reference to Transaction instead of just id
-            long transactionStartTime = op.getTransaction().getStartTimestamp();
-            List<VariableSnapshot> versions = this.committedSnapshots.get(op.getVariableId());
-            int i=versions.size()-1;
-            while(i>0 && versions.get(i).getCommitTimestamp()>=transactionStartTime) {
-                i--;
-            }
-            return Optional.of(versions.get(i).getValue());
+            // Check 1: Fail if site went down between last commit and beginning of current transaction, unless the
+            //          current transaction wrote and the site has this latest uncommitted write
+            // Check 2: If a site goes down after the transaction began, don't respond to reads until we see a
+            //          write (if the transactions contains writes)
+
         }
-        // TODO: cleanup
+
+        // TODO: Change Operation to have reference to Transaction instead of just id
+        long transactionStartTime = op.getTransaction().getStartTimestamp();
+        List<VariableSnapshot> versions = this.committedSnapshots.get(op.getVariableId());
+        int i=versions.size()-1;
+        while(i>0 && versions.get(i).getCommitTimestamp()>=transactionStartTime) {
+            i--;
+        }
+        return Optional.of(versions.get(i).getValue());
     }
 
     @Override

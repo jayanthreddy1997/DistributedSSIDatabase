@@ -10,12 +10,14 @@ public class TransactionManagerImpl implements TransactionManager {
 
     // TODO: implement SSI graph
     private Map<Integer, DataManager> siteToDataManagerMap;
-    private Map<Integer, List<Transaction>> siteToActiveWriteTransactions;
     private Map<Integer, List<DataManager>> variableToDataManagerMap;
     private Map<Long, Transaction> transactionStore; // transactionId to transaction object
-    private Set<Integer> replicatedVariables;
+    private Set<Integer> replicatedVariables; // TODO: redundant
     private Map<Integer, Boolean> siteActiveStatus;
     private Map<Integer, Queue<Operation>> waitingOperations; // Waiting operations on each site
+
+    // Store all active transactions that have had write on each site
+    private Map<Integer, Set<Transaction>> siteToActiveWriteTransactions;
 
     private void init() {
         this.siteToDataManagerMap = new HashMap<>();
@@ -45,7 +47,7 @@ public class TransactionManagerImpl implements TransactionManager {
     public void configureDataManagers(List<DataManager> dataManagers) {
         for (DataManager dm: dataManagers) {
             this.siteToDataManagerMap.put(dm.getSiteId(), dm);
-            this.siteToActiveWriteTransactions.put(dm.getSiteId(), new ArrayList<>());
+            this.siteToActiveWriteTransactions.put(dm.getSiteId(), new HashSet<>());
             for (Integer variableId: dm.getManagedVariableIds()) {
                 this.variableToDataManagerMap.get(variableId).add(dm);
             }
@@ -71,18 +73,13 @@ public class TransactionManagerImpl implements TransactionManager {
             throw new RuntimeException("No data node available to serve request: "+op);
         }
 
-        Transaction transaction = this.transactionStore.get(op.getTransactionId());
-        if (transaction.getWrites().containsKey(op.getVariableId())) {
-            // Read value written inside same transaction if exists
-            // TODO: Is it ok for the transaction manager to serve reads? probably fine!
-            return Optional.of(transaction.getWrites().get(op.getVariableId()));
-        }
-
-        if (replicatedVariables.contains(op.getVariableId())) {
+        Optional<Integer> val = Optional.empty();
+        if (this.replicatedVariables.contains(op.getVariableId())) {
             for (DataManager dm: dataManagers) {
-                if (siteActiveStatus.get(dm.getSiteId())) {
-                    Optional<Integer> val = dm.read(op, true);
+                if (this.siteActiveStatus.get(dm.getSiteId())) {
+                    val = dm.read(op);
                     if (val.isPresent()) {
+                        op.setComplete(true);
                         return val;
                     }
                 }
@@ -91,13 +88,16 @@ public class TransactionManagerImpl implements TransactionManager {
             DataManager dm = dataManagers.get(0);
 
             if (this.siteActiveStatus.get(dm.getSiteId())) {
-                return dm.read(op, false);
+                val = dm.read(op, false);
+                if (val.isPresent()) {
+                    op.setComplete(true);
+                }
             } else {
                 // Wait for site to become available
                 this.waitingOperations.get(dm.getSiteId()).add(op);
             }
         }
-        return Optional.empty();
+        return val;
     }
 
     @Override
@@ -106,13 +106,14 @@ public class TransactionManagerImpl implements TransactionManager {
         if (dataManagers.isEmpty()) {
             throw new RuntimeException("No data node available to serve request: "+op);
         }
+
         boolean writeStatus = false;
         boolean currentWriteStatus;
-
         for (DataManager dm: dataManagers) {
             currentWriteStatus = dm.write(op);
             if (currentWriteStatus) {
-                this.siteToActiveWriteTransactions.
+                Set<Transaction> activeTransactions = this.siteToActiveWriteTransactions.get(dm.getSiteId());
+                activeTransactions.add(this.transactionStore.get(op.getTransactionId()));
             }
             writeStatus = writeStatus || currentWriteStatus;
         }
