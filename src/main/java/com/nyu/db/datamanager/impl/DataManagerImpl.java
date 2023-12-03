@@ -11,11 +11,10 @@ import java.util.*;
 public class DataManagerImpl implements DataManager {
 
     private static final Logger logger = LoggerFactory.getLogger(DataManagerImpl.class);
-    private int siteId;
+    private final int siteId;
     private boolean siteUp; // TODO: remove if not required
 
-    // Multiple versions of committed values for every variable
-    private Map<Integer, List<VariableSnapshot>> committedSnapshots;
+    private Map<Integer, List<VariableSnapshot>> committedSnapshots; // Multiple versions of committed values for every variable
 
     private Map<Long, Map<Integer, Integer>> transactionDataStore; // Uncommitted data for each transaction
     private List<Long> bootTimes; // Time instant at which the site came back up from a down state
@@ -122,8 +121,8 @@ public class DataManagerImpl implements DataManager {
     }
 
     @Override
-    public boolean abort(long transactionId) {
-        return false;
+    public void abortTransaction(long transactionId) {
+        this.transactionDataStore.remove(transactionId);
     }
 
     @Override

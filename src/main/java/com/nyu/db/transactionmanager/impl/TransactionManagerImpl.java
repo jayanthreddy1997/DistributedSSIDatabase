@@ -202,13 +202,18 @@ public class TransactionManagerImpl implements TransactionManager {
 
     private void abortTransaction(long transactionId) {
         logger.info("T"+transactionId+" aborts");
-        // TODO: Cleanup on data-managers, etc
         this.cleanupTransaction(transactionId);
     }
 
     private void cleanupTransaction(long transactionId) {
         this.activeTransactions.remove(transactionId);
-        this.siteToActiveWriteTransactions.forEach((siteId, activeTransactions) -> activeTransactions.remove(transactionId));
+        for (int siteId: this.siteToActiveWriteTransactions.keySet()) {
+            Set<Long> activeTransactions = this.siteToActiveWriteTransactions.get(siteId);
+            if (activeTransactions.contains(transactionId)) {
+                this.siteToDataManagerMap.get(siteId).abortTransaction(transactionId);
+                activeTransactions.remove(transactionId);
+            }
+        }
     }
 
     private boolean checkTransactionActive(Operation op) {

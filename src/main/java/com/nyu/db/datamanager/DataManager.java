@@ -20,7 +20,7 @@ public interface DataManager {
 
     public boolean write(WriteOperation op);
 
-    public boolean abort(long transactionId);
+    public void abortTransaction(long transactionId);
 
     public boolean precommitTransaction(CommitOperation op);
 
