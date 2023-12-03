@@ -1,9 +1,7 @@
 package com.nyu.db.datamanager.impl;
 
 import com.nyu.db.datamanager.DataManager;
-import com.nyu.db.model.ReadOperation;
-import com.nyu.db.model.VariableSnapshot;
-import com.nyu.db.model.WriteOperation;
+import com.nyu.db.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +25,8 @@ public class DataManagerImpl implements DataManager {
         this.siteUp = true;
         this.committedSnapshots = new HashMap<>();
         this.bootTimes = new ArrayList<>();
+        this.downTimes = new ArrayList<>();
+        this.transactionDataStore = new HashMap<>();
     }
 
     @Override
@@ -53,11 +53,14 @@ public class DataManagerImpl implements DataManager {
 
     @Override
     public Optional<Integer> read(ReadOperation op, boolean runConsistencyChecks) {
-        // If uncommitted write exists in same transaction, return that value
-        if (this.transactionDataStore.get(op.getTransaction().getTransactionId()).containsKey(op.getVariableId()))
-            return Optional.of(this.transactionDataStore.get(op.getTransaction().getTransactionId()).get(op.getVariableId()))
+        assert this.bootTimes.size()==this.downTimes.size(); // Otherwise site would be down
 
-        long transactionStartTime = op.getTransaction().getStartTimestamp();
+        // If uncommitted write exists in same transaction, return that value
+        Transaction transaction = op.getTransaction();
+        if (this.transactionDataStore.get(transaction.getTransactionId()).containsKey(op.getVariableId()))
+            return Optional.of(this.transactionDataStore.get(transaction.getTransactionId()).get(op.getVariableId()));
+
+        long transactionStartTime = transaction.getStartTimestamp();
         List<VariableSnapshot> versions = this.committedSnapshots.get(op.getVariableId());
         int i = versions.size()-1;
         while(i>0 && versions.get(i).getCommitTimestamp()>transactionStartTime) {
@@ -68,7 +71,7 @@ public class DataManagerImpl implements DataManager {
             // Check 1: Fail if site went down between last commit and beginning of current transaction, unless the
             //          current transaction wrote and the site has this latest uncommitted write
             long lastTransactionCommitTime = versions.get(i).getCommitTimestamp();
-            for (long downTime: downTimes) {
+            for (long downTime: this.downTimes) {
                 if (downTime>=lastTransactionCommitTime && downTime<=transactionStartTime) {
                     return Optional.empty();
                 }
@@ -77,7 +80,23 @@ public class DataManagerImpl implements DataManager {
             // Check 2: If a site goes down after the transaction began, don't respond to reads until we see a
             //          write (if the transactions contains writes)
 
-
+            List<Operation> operations = transaction.getOperations();
+            long latestWriteTimestamp = -1;
+            for (int j=operations.size()-1; j>=0; j--) {
+                Operation operation = operations.get(j);
+                if (operation.getOperationType().equals(OperationType.WRITE) &&
+                        ((WriteOperation)operation).getVariableId()==op.getVariableId()) {
+                    latestWriteTimestamp = operation.getExecutedTimestamp();
+                    break;
+                }
+            }
+            if (latestWriteTimestamp!=-1) {
+                for (int k=0; k<bootTimes.size(); k++) {
+                    if (latestWriteTimestamp>downTimes.get(k) && latestWriteTimestamp<bootTimes.get(k)) {
+                        return Optional.empty();
+                    }
+                }
+            }
         }
 
         return Optional.of(versions.get(i).getValue());
@@ -85,10 +104,15 @@ public class DataManagerImpl implements DataManager {
 
     @Override
     public boolean write(WriteOperation op) {
+        assert this.bootTimes.size()==this.downTimes.size(); // Otherwise site would be down
+
         if (!this.siteUp) {
             return false;
         }
         long transactionId = op.getTransaction().getTransactionId();
+        if (!this.transactionDataStore.containsKey(transactionId)) {
+            this.transactionDataStore.put(transactionId, new HashMap<>());
+        }
         Map<Integer, Integer> localStore = this.transactionDataStore.get(transactionId);
         localStore.put(op.getVariableId(), op.getValue());
         logger.info(String.format("T%d wrote %d to x%d on site %d", transactionId, op.getValue(), op.getVariableId(), this.siteId));
@@ -97,11 +121,6 @@ public class DataManagerImpl implements DataManager {
 
     @Override
     public boolean abort(long transactionId) {
-        return false;
-    }
-
-    @Override
-    public boolean canPreCommitTransaction(long transactionId) {
         return false;
     }
 
@@ -118,7 +137,7 @@ public class DataManagerImpl implements DataManager {
     }
 
     @Override
-    public boolean recover(long timestamp) {
+    public void recover(long timestamp) {
         this.bootTimes.add(timestamp);
         this.siteUp = true;
     }

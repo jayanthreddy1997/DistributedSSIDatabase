@@ -26,6 +26,8 @@ public class TransactionManagerImpl implements TransactionManager {
         this.variableToDataManagerMap = new HashMap<>();
         this.siteActiveStatus = new HashMap<>();
         this.waitingOperations = new HashMap<>();
+        this.siteToActiveWriteTransactions = new HashMap<>();
+        this.transactionStore = new HashMap<>();
     }
 
     public TransactionManagerImpl() {
@@ -50,6 +52,9 @@ public class TransactionManagerImpl implements TransactionManager {
             this.siteToDataManagerMap.put(dm.getSiteId(), dm);
             this.siteToActiveWriteTransactions.put(dm.getSiteId(), new HashSet<>());
             for (Integer variableId: dm.getManagedVariableIds()) {
+                if (!this.variableToDataManagerMap.containsKey(variableId)) {
+                    this.variableToDataManagerMap.put(variableId, new ArrayList<>());
+                }
                 this.variableToDataManagerMap.get(variableId).add(dm);
             }
             this.siteActiveStatus.put(dm.getSiteId(), true);
@@ -133,7 +138,7 @@ public class TransactionManagerImpl implements TransactionManager {
     @Override
     public void fail(int siteId) {
         // TODO: Manage failure history
-        // Site goes down, immediately fail the transactions that wrote on that site!
+        // TODO: Site goes down, immediately fail the transactions that wrote on that site!
         if (this.siteActiveStatus.get(siteId)) {
             this.siteActiveStatus.put(siteId, false);
             this.siteToDataManagerMap.get(siteId).fail();

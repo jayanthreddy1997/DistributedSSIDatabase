@@ -70,26 +70,21 @@ public class Simulation {
                     this.transactionManager.createTransaction(Long.parseLong(transactionName.substring(1)));
                 } else if (token.startsWith("W")) {
                     long transactionId = Long.parseLong(params[0].trim().substring(1));
+                    Transaction transaction = this.transactionManager.getTransaction(transactionId);
                     int variableId = Integer.parseInt(params[1].trim().substring(1));
                     int value = Integer.parseInt(params[2].trim());
-                    WriteOperation op = new WriteOperation(
-                            this.transactionManager.getTransaction(transactionId),
-                            variableId,
-                            value,
-                            TimeManager.getTime()
-                    );
+                    WriteOperation op = new WriteOperation(transaction, variableId, value, TimeManager.getTime());
+                    transaction.getOperations().add(op);
                     boolean writeStatus = this.transactionManager.write(op);
                     if (!writeStatus) {
                         logger.info(String.format("W(T%d, x%d, %d) put on wait since site is down", transactionId, variableId, value));
                     }
                 } else if (token.startsWith("R")) {
                     long transactionId = Long.parseLong(params[0].trim().substring(1));
+                    Transaction transaction = this.transactionManager.getTransaction(transactionId);
                     int variableId = Integer.parseInt(params[1].trim().substring(1));
-                    ReadOperation op = new ReadOperation(
-                            this.transactionManager.getTransaction(transactionId),
-                            variableId,
-                            TimeManager.getTime()
-                    );
+                    ReadOperation op = new ReadOperation(transaction, variableId, TimeManager.getTime());
+                    transaction.getOperations().add(op);
                     Optional<Integer> val = this.transactionManager.read(op);
                     val.ifPresentOrElse(
                         integer -> logger.info(String.format("x%d: %d (T%d)", variableId, integer, transactionId)),
@@ -97,7 +92,8 @@ public class Simulation {
                     );
                 } else if (token.startsWith("end")) {
                     long transactionId = Long.parseLong(params[0].trim().substring(1));
-                    CommitOperation op = new CommitOperation(transactionId, TimeManager.getTime());
+                    Transaction transaction = this.transactionManager.getTransaction(transactionId);
+                    CommitOperation op = new CommitOperation(transaction, TimeManager.getTime());
                     boolean status = this.transactionManager.commitTransaction(op);
                     logger.info("T"+transactionId+(status?" commits":" aborts"));
                 } else if (token.equals("dump()")) {

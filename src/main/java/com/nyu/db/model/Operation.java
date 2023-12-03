@@ -1,12 +1,12 @@
 package com.nyu.db.model;
 
 import lombok.Getter;
-import lombok.AllArgsConstructor;
 import lombok.Setter;
 
 @Getter
 public class Operation {
     private static final long NOT_EXECUTED = Integer.MIN_VALUE;
+
     private final Transaction transaction;
     private final long createdTimestamp;
     @Setter

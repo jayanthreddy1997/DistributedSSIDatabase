@@ -4,7 +4,7 @@ import lombok.Getter;
 
 @Getter
 public class CommitOperation extends Operation {
-    public CommitOperation(long transactionId, long timestamp) {
-        super(timestamp, transactionId, OperationType.COMMIT);
+    public CommitOperation(Transaction transaction, long timestamp) {
+        super(transaction, timestamp, OperationType.COMMIT);
     }
 }

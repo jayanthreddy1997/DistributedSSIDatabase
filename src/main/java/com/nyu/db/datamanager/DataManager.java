@@ -21,13 +21,11 @@ public interface DataManager {
 
     public boolean abort(long transactionId);
 
-    public boolean canPreCommitTransaction(long transactionId);
-
     public boolean commitTransaction(long transactionId); // Commit the transaction
 
     public void fail();
 
-    public boolean recover(long timestamp);
+    public void recover(long timestamp);
 
     public void dumpVariableValues();
 
