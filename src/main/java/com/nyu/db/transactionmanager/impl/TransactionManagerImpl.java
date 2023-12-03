@@ -3,6 +3,7 @@ package com.nyu.db.transactionmanager.impl;
 import com.nyu.db.Simulation;
 import com.nyu.db.datamanager.DataManager;
 import com.nyu.db.model.*;
+import com.nyu.db.transactionmanager.SerializationGraph;
 import com.nyu.db.transactionmanager.TransactionManager;
 import com.nyu.db.utils.TimeManager;
 import org.slf4j.Logger;
@@ -23,6 +24,7 @@ public class TransactionManagerImpl implements TransactionManager {
     // Store all active transactions that have had write on each site
     private Map<Integer, Set<Long>> siteToActiveWriteTransactions;
     private Set<Long> activeTransactions;
+    private SerializationGraph serializationGraph;
 
     private void init() {
         this.siteToDataManagerMap = new HashMap<>();
@@ -33,6 +35,7 @@ public class TransactionManagerImpl implements TransactionManager {
         this.siteToActiveWriteTransactions = new HashMap<>();
         this.transactionStore = new HashMap<>();
         this.activeTransactions = new HashSet<>();
+        this.serializationGraph = new SerializationGraph();
     }
 
     public TransactionManagerImpl() {
@@ -169,7 +172,7 @@ public class TransactionManagerImpl implements TransactionManager {
 
     @Override
     public void recover(int siteId) {
-        // TODO: check for waiting reads!
+        // TODO: check for waiting operations!
     }
 
     @Override
@@ -188,12 +191,12 @@ public class TransactionManagerImpl implements TransactionManager {
                 }
             }
         }
+        precommitStatus = precommitStatus && this.serializationGraph.addTransactionAndRunChecks(op.getTransaction());
         if (!precommitStatus) {
             logger.info("T"+transactionId+" aborts");
             cleanupTransaction(transactionId);
             return false;
         }
-        // TODO: SSI checks
 
         boolean commitStatus = true;
         for (int site: this.siteToActiveWriteTransactions.keySet()) {
