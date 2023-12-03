@@ -170,10 +170,14 @@ public class DataManagerImpl implements DataManager {
     public void printCommittedState() {
         List<Integer> variableIds = new ArrayList<>(this.getManagedVariableIds());
         Collections.sort(variableIds);
-        for (int variableId: variableIds) {
+        for (int v=0; v<variableIds.size(); ++v) {
+            int variableId = variableIds.get(v);
             List<VariableSnapshot> versions = this.committedSnapshots.get(variableId);
             int lastCommittedValue = versions.get(versions.size()-1).getValue();
-            System.out.printf("x%d: %d, ", variableId, lastCommittedValue);
+            if (v == (variableIds.size() - 1))
+                System.out.printf("x%d: %d", variableId, lastCommittedValue);
+            else
+                System.out.printf("x%d: %d, ", variableId, lastCommittedValue);
         }
         System.out.println();
     };
