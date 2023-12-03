@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TransactionManager {
-    public Transaction createTransaction(long transactionId, long startTimestamp);
+    public Transaction createTransaction(long transactionId);
 
     public void configureDataManagers(List<DataManager> dataManagers);
 
@@ -26,4 +26,5 @@ public interface TransactionManager {
 
     public void dumpVariableValues();
 
+    public Transaction getTransaction(long transactionId);
 }

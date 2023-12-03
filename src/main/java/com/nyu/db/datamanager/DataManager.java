@@ -25,9 +25,9 @@ public interface DataManager {
 
     public boolean commitTransaction(long transactionId); // Commit the transaction
 
-    public boolean fail();
+    public void fail();
 
-    public boolean recover();
+    public boolean recover(long timestamp);
 
     public void dumpVariableValues();
 

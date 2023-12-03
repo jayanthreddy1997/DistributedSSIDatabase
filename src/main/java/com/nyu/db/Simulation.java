@@ -3,10 +3,12 @@ import com.nyu.db.datamanager.DataManager;
 import com.nyu.db.datamanager.impl.DataManagerImpl;
 import com.nyu.db.model.CommitOperation;
 import com.nyu.db.model.ReadOperation;
+import com.nyu.db.model.Transaction;
 import com.nyu.db.model.WriteOperation;
 import com.nyu.db.transactionmanager.TransactionManager;
 import com.nyu.db.transactionmanager.impl.TransactionManagerImpl;
 
+import com.nyu.db.utils.TimeManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
@@ -47,7 +49,6 @@ public class Simulation {
 
     public void run(String inputFilePath) {
         logger.info("Starting simulation with input from "+inputFilePath);
-        long timeStamp = 0;
         this.initializeDatabaseManagers();
 
         try (BufferedReader br = new BufferedReader(new FileReader(inputFilePath))) {
@@ -66,12 +67,17 @@ public class Simulation {
                         logger.error(errMsg);
                         throw new RuntimeException(errMsg);
                     }
-                    this.transactionManager.createTransaction(Long.parseLong(transactionName.substring(1)), timeStamp);
+                    this.transactionManager.createTransaction(Long.parseLong(transactionName.substring(1)));
                 } else if (token.startsWith("W")) {
                     long transactionId = Long.parseLong(params[0].trim().substring(1));
                     int variableId = Integer.parseInt(params[1].trim().substring(1));
                     int value = Integer.parseInt(params[2].trim());
-                    WriteOperation op = new WriteOperation(transactionId, variableId, value, timeStamp);
+                    WriteOperation op = new WriteOperation(
+                            this.transactionManager.getTransaction(transactionId),
+                            variableId,
+                            value,
+                            TimeManager.getTime()
+                    );
                     boolean writeStatus = this.transactionManager.write(op);
                     if (!writeStatus) {
                         logger.info(String.format("W(T%d, x%d, %d) put on wait since site is down", transactionId, variableId, value));
@@ -79,7 +85,11 @@ public class Simulation {
                 } else if (token.startsWith("R")) {
                     long transactionId = Long.parseLong(params[0].trim().substring(1));
                     int variableId = Integer.parseInt(params[1].trim().substring(1));
-                    ReadOperation op = new ReadOperation(transactionId, variableId, timeStamp);
+                    ReadOperation op = new ReadOperation(
+                            this.transactionManager.getTransaction(transactionId),
+                            variableId,
+                            TimeManager.getTime()
+                    );
                     Optional<Integer> val = this.transactionManager.read(op);
                     val.ifPresentOrElse(
                         integer -> logger.info(String.format("x%d: %d (T%d)", variableId, integer, transactionId)),
@@ -87,7 +97,7 @@ public class Simulation {
                     );
                 } else if (token.startsWith("end")) {
                     long transactionId = Long.parseLong(params[0].trim().substring(1));
-                    CommitOperation op = new CommitOperation(transactionId, timeStamp);
+                    CommitOperation op = new CommitOperation(transactionId, TimeManager.getTime());
                     boolean status = this.transactionManager.commitTransaction(op);
                     logger.info("T"+transactionId+(status?" commits":" aborts"));
                 } else if (token.equals("dump()")) {
@@ -104,7 +114,7 @@ public class Simulation {
                     throw new RuntimeException(errMsg);
                 }
 
-                timeStamp += 1;
+                TimeManager.incrementTime();
             }
         } catch (FileNotFoundException e) {
             logger.error("File not found: "+inputFilePath);

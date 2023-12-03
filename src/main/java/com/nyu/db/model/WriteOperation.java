@@ -7,8 +7,8 @@ public class WriteOperation extends Operation {
     private final int variableId;
     private final int value;
 
-    public WriteOperation(long transactionId, int variableId, int value, long timestamp) {
-        super(timestamp, transactionId, OperationType.WRITE);
+    public WriteOperation(Transaction transaction, int variableId, int value, long timestamp) {
+        super(transaction, timestamp, OperationType.WRITE);
         this.variableId = variableId;
         this.value = value;
     }

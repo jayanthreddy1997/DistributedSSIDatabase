@@ -3,6 +3,7 @@ package com.nyu.db.transactionmanager.impl;
 import com.nyu.db.datamanager.DataManager;
 import com.nyu.db.model.*;
 import com.nyu.db.transactionmanager.TransactionManager;
+import com.nyu.db.utils.TimeManager;
 
 import java.util.*;
 
@@ -37,8 +38,8 @@ public class TransactionManagerImpl implements TransactionManager {
     }
 
     @Override
-    public Transaction createTransaction(long transactionId, long startTimestamp) {
-        Transaction t = new Transaction(transactionId, startTimestamp, new ArrayList<>());
+    public Transaction createTransaction(long transactionId) {
+        Transaction t = new Transaction(transactionId, TimeManager.getTime(), new ArrayList<>());
         this.transactionStore.put(transactionId, t);
         return t;
     }
@@ -79,7 +80,7 @@ public class TransactionManagerImpl implements TransactionManager {
                 if (this.siteActiveStatus.get(dm.getSiteId())) {
                     val = dm.read(op);
                     if (val.isPresent()) {
-                        op.setComplete(true);
+                        op.setExecutedTimestamp(TimeManager.getTime());
                         return val;
                     }
                 }
@@ -90,7 +91,7 @@ public class TransactionManagerImpl implements TransactionManager {
             if (this.siteActiveStatus.get(dm.getSiteId())) {
                 val = dm.read(op, false);
                 if (val.isPresent()) {
-                    op.setComplete(true);
+                    op.setExecutedTimestamp(TimeManager.getTime());
                 }
             } else {
                 // Wait for site to become available
@@ -113,7 +114,7 @@ public class TransactionManagerImpl implements TransactionManager {
             currentWriteStatus = dm.write(op);
             if (currentWriteStatus) {
                 Set<Transaction> activeTransactions = this.siteToActiveWriteTransactions.get(dm.getSiteId());
-                activeTransactions.add(this.transactionStore.get(op.getTransactionId()));
+                activeTransactions.add(op.getTransaction());
             }
             writeStatus = writeStatus || currentWriteStatus;
         }
@@ -123,6 +124,8 @@ public class TransactionManagerImpl implements TransactionManager {
             for (DataManager dm: dataManagers) {
                 this.waitingOperations.get(dm.getSiteId()).add(op);
             }
+        } else {
+            op.setExecutedTimestamp(TimeManager.getTime());
         }
         return writeStatus;
     }
@@ -131,7 +134,10 @@ public class TransactionManagerImpl implements TransactionManager {
     public void fail(int siteId) {
         // TODO: Manage failure history
         // Site goes down, immediately fail the transactions that wrote on that site!
-        this.siteToDataManagerMap.get(siteId).fail();
+        if (this.siteActiveStatus.get(siteId)) {
+            this.siteActiveStatus.put(siteId, false);
+            this.siteToDataManagerMap.get(siteId).fail();
+        }
     }
 
     @Override
@@ -152,5 +158,9 @@ public class TransactionManagerImpl implements TransactionManager {
             System.out.printf("site %d - ", siteId);
             this.siteToDataManagerMap.get(siteId).dumpVariableValues();
         }
+    }
+
+    public Transaction getTransaction(long transactionId) {
+        return this.transactionStore.get(transactionId);
     }
 }
