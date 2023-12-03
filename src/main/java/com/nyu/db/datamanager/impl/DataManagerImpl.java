@@ -125,17 +125,12 @@ public class DataManagerImpl implements DataManager {
         return false;
     }
 
-    /**
-     * Abort conditions:
-     * - Case 1: First Committer wins - Abort if some data item x that T1 has written has also been committed by
-     *           some other transaction T2 since T1 began
-     * - Case 2:
-     * - Case 3:
-     *
-     */
     @Override
-    public boolean commitTransaction(CommitOperation op) {
+    public boolean precommitTransaction(CommitOperation op) {
         boolean commitStatus = true;
+
+        // First Committer wins rule - Abort if some data item x that T1 has written has also been committed by some
+        // other transaction T2 since T1 began
         long transactionStartTime = op.getTransaction().getStartTimestamp();
         Map<Integer, Integer> transactionWorkspace = this.transactionDataStore.get(op.getTransaction().getTransactionId());
         for (int variableId: transactionWorkspace.keySet()) {
@@ -145,13 +140,16 @@ public class DataManagerImpl implements DataManager {
                 break;
             }
         }
-
-        if (commitStatus) {
-            transactionWorkspace.forEach((variableId, value) -> this.committedSnapshots.get(variableId).add(new VariableSnapshot(variableId, value, TimeManager.getTime())));
-            op.setExecutedTimestamp(TimeManager.getTime());
-        }
-        this.transactionDataStore.remove(op.getTransaction().getTransactionId());
         return commitStatus;
+    }
+
+    @Override
+    public boolean commitTransaction(CommitOperation op) {
+        Map<Integer, Integer> transactionWorkspace = this.transactionDataStore.get(op.getTransaction().getTransactionId());
+        transactionWorkspace.forEach((variableId, value) -> this.committedSnapshots.get(variableId).add(new VariableSnapshot(variableId, value, TimeManager.getTime())));
+        op.setExecutedTimestamp(TimeManager.getTime());
+        this.transactionDataStore.remove(op.getTransaction().getTransactionId());
+        return true;
     }
 
     @Override
@@ -168,7 +166,7 @@ public class DataManagerImpl implements DataManager {
     }
 
     @Override
-    public void dumpVariableValues() {
+    public void printCommittedState() {
         List<Integer> variableIds = new ArrayList<>(this.getManagedVariableIds());
         Collections.sort(variableIds);
         for (int variableId: variableIds) {

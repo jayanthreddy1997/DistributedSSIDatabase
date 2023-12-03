@@ -68,36 +68,34 @@ public class Simulation {
                         throw new RuntimeException(errMsg);
                     }
                     this.transactionManager.createTransaction(Long.parseLong(transactionName.substring(1)));
-                } else if (token.startsWith("W")) {
+                } else if (token.startsWith("W") || token.startsWith("R") || token.startsWith("end")) {
                     long transactionId = Long.parseLong(params[0].trim().substring(1));
                     Transaction transaction = this.transactionManager.getTransaction(transactionId);
-                    int variableId = Integer.parseInt(params[1].trim().substring(1));
-                    int value = Integer.parseInt(params[2].trim());
-                    WriteOperation op = new WriteOperation(transaction, variableId, value, TimeManager.getTime());
-                    transaction.getOperations().add(op);
-                    boolean writeStatus = this.transactionManager.write(op);
-                    if (!writeStatus) {
-                        logger.info(String.format("W(T%d, x%d, %d) put on wait since site is down", transactionId, variableId, value));
+                    if (token.startsWith("W")) {
+                        int variableId = Integer.parseInt(params[1].trim().substring(1));
+                        int value = Integer.parseInt(params[2].trim());
+                        WriteOperation op = new WriteOperation(transaction, variableId, value, TimeManager.getTime());
+                        transaction.getOperations().add(op);
+                        boolean writeStatus = this.transactionManager.write(op);
+                        if (!writeStatus) {
+                            logger.info(String.format("W(T%d, x%d, %d) put on wait since site is down", transactionId, variableId, value));
+                        }
+                    } else if (token.startsWith("R")) {
+                        int variableId = Integer.parseInt(params[1].trim().substring(1));
+                        ReadOperation op = new ReadOperation(transaction, variableId, TimeManager.getTime());
+                        transaction.getOperations().add(op);
+                        Optional<Integer> val = this.transactionManager.read(op);
+                        val.ifPresentOrElse(
+                                integer -> logger.info(String.format("x%d: %d (T%d)", variableId, integer, transactionId)),
+                                () -> logger.info(String.format("R(T%d, x%d) put on wait since site is down", transactionId, variableId))
+                        );
+                    } else if (token.startsWith("end")) {
+                        CommitOperation op = new CommitOperation(transaction, TimeManager.getTime());
+                        boolean status = this.transactionManager.commitTransaction(op);
+                        logger.info("T"+transactionId+(status?" commits":" aborts"));
                     }
-                } else if (token.startsWith("R")) {
-                    long transactionId = Long.parseLong(params[0].trim().substring(1));
-                    Transaction transaction = this.transactionManager.getTransaction(transactionId);
-                    int variableId = Integer.parseInt(params[1].trim().substring(1));
-                    ReadOperation op = new ReadOperation(transaction, variableId, TimeManager.getTime());
-                    transaction.getOperations().add(op);
-                    Optional<Integer> val = this.transactionManager.read(op);
-                    val.ifPresentOrElse(
-                        integer -> logger.info(String.format("x%d: %d (T%d)", variableId, integer, transactionId)),
-                        () -> logger.info(String.format("R(T%d, x%d) put on wait since site is down", transactionId, variableId))
-                    );
-                } else if (token.startsWith("end")) {
-                    long transactionId = Long.parseLong(params[0].trim().substring(1));
-                    Transaction transaction = this.transactionManager.getTransaction(transactionId);
-                    CommitOperation op = new CommitOperation(transaction, TimeManager.getTime());
-                    boolean status = this.transactionManager.commitTransaction(op);
-                    logger.info("T"+transactionId+(status?" commits":" aborts"));
                 } else if (token.equals("dump()")) {
-                    this.transactionManager.dumpVariableValues();
+                    this.transactionManager.printCommittedState();
                 } else if (token.startsWith("fail")) {
                     int siteId = Integer.parseInt(params[0].trim());
                     this.transactionManager.fail(siteId);

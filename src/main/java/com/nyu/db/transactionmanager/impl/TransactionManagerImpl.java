@@ -9,7 +9,6 @@ import java.util.*;
 
 public class TransactionManagerImpl implements TransactionManager {
 
-    // TODO: implement SSI graph
     private Map<Integer, DataManager> siteToDataManagerMap;
     private Map<Integer, List<DataManager>> variableToDataManagerMap;
     private Map<Long, Transaction> transactionStore; // transactionId to transaction object
@@ -154,10 +153,19 @@ public class TransactionManagerImpl implements TransactionManager {
     public boolean commitTransaction(CommitOperation op) {
         // TODO: Do we queue in any case?
 
+        for (int site: this.siteToActiveWriteTransactions.keySet()) {
+            if (this.siteToActiveWriteTransactions.get(site).contains(op.getTransaction().getTransactionId())) {
+                // Commit conditions have to succeed on every site, else abort
+                if (!this.siteToDataManagerMap.get(site).precommitTransaction(op)) {
+                    return false;
+                }
+            }
+        }
+        // TODO: SSI checks
+
         boolean commitStatus = true;
         for (int site: this.siteToActiveWriteTransactions.keySet()) {
             if (this.siteToActiveWriteTransactions.get(site).contains(op.getTransaction().getTransactionId())) {
-                // Commit has to succeed on every site, else abort // TODO: think if condition is correct
                 commitStatus = commitStatus && this.siteToDataManagerMap.get(site).commitTransaction(op);
             }
         }
@@ -165,13 +173,13 @@ public class TransactionManagerImpl implements TransactionManager {
         return commitStatus;
     }
 
-    public void dumpVariableValues() {
+    public void printCommittedState() {
         // Print committed values of all copies of all variables at all sites,
         List<Integer> siteIds = new ArrayList<>(siteToDataManagerMap.keySet());
         Collections.sort(siteIds);
         for (int siteId: siteIds) {
             System.out.printf("site %d - ", siteId);
-            this.siteToDataManagerMap.get(siteId).dumpVariableValues();
+            this.siteToDataManagerMap.get(siteId).printCommittedState();
         }
     }
 

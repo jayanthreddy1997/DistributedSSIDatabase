@@ -24,7 +24,7 @@ public interface TransactionManager {
 
     public boolean commitTransaction(CommitOperation op);
 
-    public void dumpVariableValues();
+    public void printCommittedState();
 
     public Transaction getTransaction(long transactionId);
 }

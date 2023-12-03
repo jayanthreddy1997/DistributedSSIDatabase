@@ -22,12 +22,14 @@ public interface DataManager {
 
     public boolean abort(long transactionId);
 
+    public boolean precommitTransaction(CommitOperation op);
+
     public boolean commitTransaction(CommitOperation op);
 
     public void fail();
 
     public void recover(long timestamp);
 
-    public void dumpVariableValues();
+    public void printCommittedState();
 
 }
