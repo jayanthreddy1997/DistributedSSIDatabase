@@ -151,7 +151,6 @@ public class TransactionManagerImpl implements TransactionManager {
 
     @Override
     public boolean commitTransaction(CommitOperation op) {
-        // TODO: Do we queue in any case?
 
         for (int site: this.siteToActiveWriteTransactions.keySet()) {
             if (this.siteToActiveWriteTransactions.get(site).contains(op.getTransaction().getTransactionId())) {

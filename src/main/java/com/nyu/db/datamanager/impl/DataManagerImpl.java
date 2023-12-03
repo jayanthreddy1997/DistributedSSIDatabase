@@ -58,7 +58,8 @@ public class DataManagerImpl implements DataManager {
 
         // If uncommitted write exists in same transaction, return that value
         Transaction transaction = op.getTransaction();
-        if (this.transactionDataStore.get(transaction.getTransactionId()).containsKey(op.getVariableId()))
+        if (this.transactionDataStore.containsKey(transaction.getTransactionId()) &&
+                this.transactionDataStore.get(transaction.getTransactionId()).containsKey(op.getVariableId()))
             return Optional.of(this.transactionDataStore.get(transaction.getTransactionId()).get(op.getVariableId()));
 
         long transactionStartTime = transaction.getStartTimestamp();
