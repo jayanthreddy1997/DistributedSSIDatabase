@@ -98,6 +98,8 @@ public class TransactionManagerImpl implements TransactionManager {
                     val = dm.read(op);
                     if (val.isPresent()) {
                         op.setExecutedTimestamp(TimeManager.getTime());
+                        logger.info(String.format("x%d: %d (T%d)", op.getVariableId(), val.get(), op.getTransaction().getTransactionId()));
+                        // TODO: Cleanup, replicated var queueing?
                         return val;
                     }
                 }
