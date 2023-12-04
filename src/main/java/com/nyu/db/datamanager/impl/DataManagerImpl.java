@@ -85,7 +85,7 @@ public class DataManagerImpl implements DataManager {
             // Check 2: If a site goes down after the transaction began, don't respond to reads until we see a
             //          write (if the transactions contains writes)
 
-            List<Operation> operations = transaction.getOperations();
+            List<SymbolOperation> operations = transaction.getOperations();
             long latestWriteTimestamp = -1;
             for (int j=operations.size()-1; j>=0; j--) {
                 Operation operation = operations.get(j);

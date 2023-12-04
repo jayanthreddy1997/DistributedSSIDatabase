@@ -20,12 +20,12 @@ public class SerializationGraph {
     public boolean addTransactionAndRunChecks(Transaction transaction) {
         this.addTransaction(transaction);
 
-        boolean consistent = this.checkCycle();
-        if (!consistent) {
-            logger.info("Detected cycle with 2 consecutive RW edges upon adding T"+transaction.getTransactionId()+"to serialization graph.");
+        boolean cycleExists = this.checkCycle();
+        if (cycleExists) {
+            logger.info("Detected cycle with 2 consecutive RW edges upon adding T"+transaction.getTransactionId()+" to serialization graph.");
             this.removeTransaction(transaction);
         }
-        return consistent;
+        return !cycleExists;
     }
 
     private void addTransaction(Transaction t1) {
@@ -71,8 +71,27 @@ public class SerializationGraph {
      * @return true if a cycle is found
      */
     private boolean checkCycle() {
+        Set<Transaction> visited = new HashSet<>();
+        Set<Transaction> recStack = new HashSet<>();
+        for (Transaction transaction: this.graph.keySet())
+            if (this.dfs(transaction, recStack, visited))
+                return true;
 
+        return false;
+    }
+    private boolean dfs(Transaction transaction, Set<Transaction> recStack, Set<Transaction> visited) {
+        if (recStack.contains(transaction))
+            return true;
+        if (visited.contains(transaction))
+            return false;
 
-        return true;
+        visited.add(transaction);
+        recStack.add(transaction);
+        for (Transaction child: this.graph.get(transaction))
+            if (this.dfs(child, recStack, visited))
+                return true;
+
+        recStack.remove(transaction);
+        return false;
     }
 }
