@@ -7,6 +7,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,7 +21,7 @@ public class SimulationTest {
     private Simulation sim;
     @BeforeEach
     void init() {
-        sim = new Simulation();
+        this.sim = new Simulation();
     }
 
     @ParameterizedTest
@@ -33,6 +34,10 @@ public class SimulationTest {
     }
 
     public static IntStream getTestNumbers() {
-        return IntStream.rangeClosed(1, 25);
+        File folder = new File("src/test/resources/inputs");
+        File[] listOfFiles = folder.listFiles();
+        int numTests = listOfFiles.length;
+
+        return IntStream.rangeClosed(1, numTests);
     }
 }

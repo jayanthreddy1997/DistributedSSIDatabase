@@ -173,6 +173,12 @@ public class TransactionManagerImpl implements TransactionManager {
     @Override
     public void recover(int siteId) {
         // TODO: check for waiting operations!
+        if (this.siteActiveStatus.get(siteId)) {
+            return;
+        }
+        logger.info("Recovering site "+siteId);
+        this.siteActiveStatus.put(siteId, true);
+        this.siteToDataManagerMap.get(siteId).recover();
     }
 
     @Override
