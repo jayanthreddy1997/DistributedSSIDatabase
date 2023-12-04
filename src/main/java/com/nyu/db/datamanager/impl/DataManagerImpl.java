@@ -51,6 +51,38 @@ public class DataManagerImpl implements DataManager {
         return read(op, true);
     }
 
+    private boolean canServeRead(ReadOperation op, Transaction transaction, long lastTransactionCommitTime) {
+        long transactionStartTime = transaction.getStartTimestamp();
+
+        // Check 1: Fail if site went down between last commit and beginning of current transaction, unless the
+        //          current transaction wrote and the site has this latest uncommitted write
+        for (long downTime: this.downTimes) {
+            if (downTime>=lastTransactionCommitTime && downTime<=transactionStartTime) {
+                return false;
+            }
+        }
+        List<Operation> operations = transaction.getOperations();
+        long latestWriteTimestamp = -1;
+        // Check 2: If a site goes down after the transaction began, don't respond to reads until we see a
+        //          write (if the transactions contains writes)
+        for (int j=operations.size()-1; j>=0; j--) {
+            Operation operation = operations.get(j);
+            if (operation.getOperationType().equals(OperationType.WRITE) &&
+                    ((WriteOperation)operation).getVariableId()==op.getVariableId()) {
+                latestWriteTimestamp = operation.getExecutedTimestamp();
+                break;
+            }
+        }
+        if (latestWriteTimestamp!=-1) {
+            for (int k=0; k<bootTimes.size(); k++) {
+                if (latestWriteTimestamp>downTimes.get(k) && latestWriteTimestamp<bootTimes.get(k)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     @Override
     public Optional<Integer> read(ReadOperation op, boolean runConsistencyChecks) {
         assert this.bootTimes.size()==this.downTimes.size(); // Otherwise site would be down
@@ -61,45 +93,18 @@ public class DataManagerImpl implements DataManager {
                 this.transactionDataStore.get(transaction.getTransactionId()).containsKey(op.getVariableId()))
             return Optional.of(this.transactionDataStore.get(transaction.getTransactionId()).get(op.getVariableId()));
 
+
         long transactionStartTime = transaction.getStartTimestamp();
         List<VariableSnapshot> versions = this.committedSnapshots.get(op.getVariableId());
         int i = versions.size()-1;
-        while(i>0 && versions.get(i).getCommitTimestamp()>transactionStartTime) {
+        long lastTransactionCommitTime = versions.get(i).getCommitTimestamp();
+        while(i>0 && lastTransactionCommitTime>transactionStartTime) {
             i--;
         }
-
         if (runConsistencyChecks) {
-            // Check 1: Fail if site went down between last commit and beginning of current transaction, unless the
-            //          current transaction wrote and the site has this latest uncommitted write
-            long lastTransactionCommitTime = versions.get(i).getCommitTimestamp();
-            for (long downTime: this.downTimes) {
-                if (downTime>=lastTransactionCommitTime && downTime<=transactionStartTime) {
-                    return Optional.empty();
-                }
-            }
-
-            // Check 2: If a site goes down after the transaction began, don't respond to reads until we see a
-            //          write (if the transactions contains writes)
-
-            List<Operation> operations = transaction.getOperations();
-            long latestWriteTimestamp = -1;
-            for (int j=operations.size()-1; j>=0; j--) {
-                Operation operation = operations.get(j);
-                if (operation.getOperationType().equals(OperationType.WRITE) &&
-                        ((WriteOperation)operation).getVariableId()==op.getVariableId()) {
-                    latestWriteTimestamp = operation.getExecutedTimestamp();
-                    break;
-                }
-            }
-            if (latestWriteTimestamp!=-1) {
-                for (int k=0; k<bootTimes.size(); k++) {
-                    if (latestWriteTimestamp>downTimes.get(k) && latestWriteTimestamp<bootTimes.get(k)) {
-                        return Optional.empty();
-                    }
-                }
-            }
+            if (!canServeRead(op, transaction, lastTransactionCommitTime))
+                return Optional.empty();
         }
-
         return Optional.of(versions.get(i).getValue());
     }
 
