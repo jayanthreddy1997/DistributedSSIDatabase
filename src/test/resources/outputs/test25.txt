@@ -28,6 +28,6 @@ T4 wrote 99 to x8 on site 4
 T4 commits
 R(T3, x8) put on wait
 Recovering site 2
-x8: 88 (T2, site 2)
+x8: 88 (T3, site 2)
 T3 commits
 Simulation complete!

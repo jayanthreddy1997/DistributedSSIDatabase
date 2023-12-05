@@ -202,13 +202,6 @@ public class TransactionManagerImpl implements TransactionManager {
                 Optional<Integer> val = dm.read(pendingReadOperation);
                 if (val.isPresent()) {
                     pendingReadOperation.setExecutedTimestamp(TimeManager.getTime());
-                    logger.info(
-                            String.format("x%d: %d (T%d)",
-                                    pendingReadOperation.getVariableId(),
-                                    val.get(),
-                                    pendingReadOperation.getTransaction().getTransactionId()
-                            )
-                    );
                 }
             } else if (pendingOperation.getOperationType().equals(OperationType.WRITE)) {
                 WriteOperation pendingWriteOperation = ((WriteOperation) pendingOperation);

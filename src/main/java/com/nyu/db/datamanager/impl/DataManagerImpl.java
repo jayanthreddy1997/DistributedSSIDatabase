@@ -61,7 +61,7 @@ public class DataManagerImpl implements DataManager {
                 return false;
             }
         }
-        List<Operation> operations = transaction.getOperations();
+        List<SymbolOperation> operations = transaction.getOperations();
         long latestWriteTimestamp = -1;
         // Check 2: If a site goes down after the transaction began, don't respond to reads until we see a
         //          write (if the transactions contains writes)
@@ -104,7 +104,7 @@ public class DataManagerImpl implements DataManager {
             i--;
         }
         long lastTransactionCommitTime = versions.get(i).getCommitTimestamp();
-        if (runConsistencyChecks && !canServeRead(op, transaction, lastTransactionCommitTime))
+        if (runConsistencyChecks && !canServeRead(op, transaction, lastTransactionCommitTime)) {
             return Optional.empty();
         }
 
