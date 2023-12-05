@@ -11,7 +11,7 @@ public class SerializationGraph {
 
     private static final Logger logger = LoggerFactory.getLogger(SerializationGraph.class);
 
-    private Map<Transaction, Set<Transaction>> graph;  // Graph represented as adjacency list
+    private Map<Transaction, Set<Transaction>> graph;
 
     public SerializationGraph() {
         this.graph = new HashMap<>();
@@ -32,6 +32,8 @@ public class SerializationGraph {
         this.graph.put(t1, new HashSet<>());
 
         for (Transaction t2: this.graph.keySet()) {
+            if (t1.equals(t2))
+                continue;
             for (SymbolOperation o2: t2.getOperations()) {
                 for (SymbolOperation o1: t1.getOperations()) {
                     if (o1.getVariableId()==o2.getVariableId()) {

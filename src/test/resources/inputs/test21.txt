@@ -9,3 +9,4 @@ W(T1, x4, 30)
 W(T2, x2, 90)
 end(T1) // succeeds
 end(T2) // aborts, since commit causes a cycle
+dump()
