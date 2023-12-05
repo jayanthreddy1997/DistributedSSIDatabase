@@ -225,7 +225,7 @@ public class TransactionManagerImpl implements TransactionManager {
         long transactionId = op.getTransaction().getTransactionId();
         //check if any of the transaction's operations are not executed. If so, abort
         for (Operation transactionOp : op.getTransaction().getOperations()) {
-            if (!transactionOp.equals(op) && !op.isExecuted()) {
+            if (!transactionOp.equals(op) && !transactionOp.isExecuted()) {
                 abortTransaction(transactionId);
                 return false;
             }
