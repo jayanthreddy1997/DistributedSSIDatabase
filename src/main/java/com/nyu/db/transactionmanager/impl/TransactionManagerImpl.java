@@ -135,6 +135,8 @@ public class TransactionManagerImpl implements TransactionManager {
         boolean writeStatus = false;
         boolean currentWriteStatus;
         for (DataManager dm: dataManagers) {
+            if (!this.siteActiveStatus.get(dm.getSiteId()))
+                continue;
             currentWriteStatus = dm.write(op);
             if (currentWriteStatus) {
                 Set<Long> activeTransactions = this.siteToActiveWriteTransactions.get(dm.getSiteId());
