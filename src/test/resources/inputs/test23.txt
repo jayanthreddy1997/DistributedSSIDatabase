@@ -21,3 +21,4 @@ fail(10)
 begin(T3)
 R(T3,x8)  // T3 should abort because no site has a committed write to x8 before T3 began and was continuously up until T3 began
 end(T3)
+dump()

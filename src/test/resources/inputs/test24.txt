@@ -26,3 +26,4 @@ W(T4,x8,99)
 end(T4)
 R(T3,x8)                              // T3 should still abort
 end(T3)
+dump()
