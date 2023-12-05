@@ -1,0 +1,27 @@
+Starting simulation with input from src/test/resources/inputs/test10.txt
+T3 wrote 22 to x2 on site 1
+T3 wrote 22 to x2 on site 2
+T3 wrote 22 to x2 on site 3
+T3 wrote 22 to x2 on site 4
+T3 wrote 22 to x2 on site 5
+T3 wrote 22 to x2 on site 6
+T3 wrote 22 to x2 on site 7
+T3 wrote 22 to x2 on site 8
+T3 wrote 22 to x2 on site 9
+T3 wrote 22 to x2 on site 10
+T2 wrote 44 to x4 on site 1
+T2 wrote 44 to x4 on site 2
+T2 wrote 44 to x4 on site 3
+T2 wrote 44 to x4 on site 4
+T2 wrote 44 to x4 on site 5
+T2 wrote 44 to x4 on site 6
+T2 wrote 44 to x4 on site 7
+T2 wrote 44 to x4 on site 8
+T2 wrote 44 to x4 on site 9
+T2 wrote 44 to x4 on site 10
+x4: 40 (T3, site 1)
+T2 commits
+T3 commits
+x2: 22 (T1, site 1)
+T1 commits
+Simulation complete!

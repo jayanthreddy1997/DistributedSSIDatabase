@@ -130,7 +130,7 @@ public class TransactionManagerImpl implements TransactionManager {
             }
         }
         if (val.isEmpty())
-            logger.info(String.format(op + " put on wait since site is down"));
+            logger.info(String.format(op + " put on wait"));
 
         return val;
     }
@@ -163,7 +163,7 @@ public class TransactionManagerImpl implements TransactionManager {
             for (DataManager dm: dataManagers) {
                 this.waitingOperations.get(dm.getSiteId()).add(op);
             }
-            logger.info(String.format(op + " put on wait since site is down"));
+            logger.info(String.format(op + " put on wait"));
         } else {
             op.setExecutedTimestamp(TimeManager.getTime());
         }

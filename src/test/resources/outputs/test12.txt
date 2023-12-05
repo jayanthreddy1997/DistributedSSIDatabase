@@ -1,0 +1,16 @@
+Starting simulation with input from src/test/resources/inputs/test12.txt
+x2: 20 (T1, site 1)
+x2: 20 (T2, site 1)
+T1 commits
+T2 wrote 10 to x2 on site 1
+T2 wrote 10 to x2 on site 2
+T2 wrote 10 to x2 on site 3
+T2 wrote 10 to x2 on site 4
+T2 wrote 10 to x2 on site 5
+T2 wrote 10 to x2 on site 6
+T2 wrote 10 to x2 on site 7
+T2 wrote 10 to x2 on site 8
+T2 wrote 10 to x2 on site 9
+T2 wrote 10 to x2 on site 10
+T2 commits
+Simulation complete!
