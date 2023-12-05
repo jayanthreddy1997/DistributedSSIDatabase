@@ -114,7 +114,6 @@ public class TransactionManagerImpl implements TransactionManager {
             for (DataManager dm : dataManagers) {
                 if (!this.siteActiveStatus.get(dm.getSiteId())) {
                     this.waitingOperations.get(dm.getSiteId()).add(op);
-                    op.incrementNumQueuedSites();
                 }
             }
         } else { //unreplicated
@@ -149,6 +148,8 @@ public class TransactionManagerImpl implements TransactionManager {
         boolean writeStatus = false;
         boolean currentWriteStatus;
         for (DataManager dm: dataManagers) {
+            if (!this.siteActiveStatus.get(dm.getSiteId()))
+                continue;
             currentWriteStatus = dm.write(op);
             if (currentWriteStatus) {
                 Set<Long> activeTransactions = this.siteToActiveWriteTransactions.get(dm.getSiteId());
@@ -188,15 +189,16 @@ public class TransactionManagerImpl implements TransactionManager {
     public void recover(int siteId) {
         // TODO: check for waiting operations!
         assert !this.siteActiveStatus.get(siteId) : "Cannot call recover on a site that is currently up!";
-
         DataManager dm = siteToDataManagerMap.get(siteId);
+        logger.info("Recovering site "+siteId);
+        this.siteActiveStatus.put(siteId, true);
+        dm.recover();
         for (Operation pendingOperation : this.waitingOperations.get(siteId)) {
             if (pendingOperation.getOperationType().equals(OperationType.READ)) {
                 ReadOperation pendingReadOperation = ((ReadOperation) pendingOperation); // casting here :/
                 if (pendingReadOperation.isExecuted()) { // Operation done
                     continue;
                 }
-                Transaction transaction = pendingOperation.getTransaction();
                 Optional<Integer> val = dm.read(pendingReadOperation);
                 if (val.isPresent()) {
                     pendingReadOperation.setExecutedTimestamp(TimeManager.getTime());
@@ -208,18 +210,11 @@ public class TransactionManagerImpl implements TransactionManager {
                             )
                     );
                 }
-                pendingReadOperation.decrementNumQueuedSites();
-                if (!pendingReadOperation.isExecuted() && pendingReadOperation.getNumQueuedSites() == 0) {
-                    abortTransaction(transaction.getTransactionId());
-                }
             } else if (pendingOperation.getOperationType().equals(OperationType.WRITE)) {
                 WriteOperation pendingWriteOperation = ((WriteOperation) pendingOperation);
                 dm.write(pendingWriteOperation);
             }
         }
-        logger.info("Recovering site "+siteId);
-        this.siteActiveStatus.put(siteId, true);
-        this.siteToDataManagerMap.get(siteId).recover();
     }
 
     @Override
