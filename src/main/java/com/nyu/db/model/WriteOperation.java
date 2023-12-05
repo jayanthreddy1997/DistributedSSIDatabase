@@ -3,18 +3,17 @@ package com.nyu.db.model;
 import lombok.Getter;
 
 @Getter
-public class WriteOperation extends Operation {
-    private final int variableId;
+public class WriteOperation extends SymbolOperation {
+
     private final int value;
 
     public WriteOperation(Transaction transaction, int variableId, int value, long timestamp) {
-        super(transaction, timestamp, OperationType.WRITE);
-        this.variableId = variableId;
+        super(transaction, variableId, timestamp, OperationType.WRITE);
         this.value = value;
     }
 
     @Override
     public String toString() {
-        return String.format("W(T%d, x%d, %d)", this.getTransaction().getTransactionId(), variableId, value);
+        return String.format("W(T%d, x%d, %d)", this.getTransaction().getTransactionId(), this.getVariableId(), value);
     }
 }

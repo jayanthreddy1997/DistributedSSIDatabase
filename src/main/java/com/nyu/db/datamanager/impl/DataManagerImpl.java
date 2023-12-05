@@ -104,9 +104,8 @@ public class DataManagerImpl implements DataManager {
             i--;
         }
         long lastTransactionCommitTime = versions.get(i).getCommitTimestamp();
-        if (runConsistencyChecks) {
-            if (!canServeRead(op, transaction, lastTransactionCommitTime))
-                return Optional.empty();
+        if (runConsistencyChecks && !canServeRead(op, transaction, lastTransactionCommitTime))
+            return Optional.empty();
         }
 
         int val = versions.get(i).getValue();

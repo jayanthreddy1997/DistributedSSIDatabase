@@ -12,3 +12,4 @@ R(T3, x6)
 W(T3, x2, 70)
 end(T2) // T2 commits [T3 -- rw --> T2 -- rw --> T1]
 end(T3) // T3 aborts [attempts to add edge T1 --- ww --> T3, creating a cycle hence aborts]
+dump()
