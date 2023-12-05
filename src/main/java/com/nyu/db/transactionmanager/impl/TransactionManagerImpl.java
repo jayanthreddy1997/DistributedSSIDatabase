@@ -93,6 +93,7 @@ public class TransactionManagerImpl implements TransactionManager {
 
         Optional<Integer> val = Optional.empty();
         if (this.replicatedVariables.contains(op.getVariableId())) {
+            boolean allSitesUp = true;
             for (DataManager dm: dataManagers) {
                 if (this.siteActiveStatus.get(dm.getSiteId())) {
                     val = dm.read(op);
@@ -102,9 +103,22 @@ public class TransactionManagerImpl implements TransactionManager {
                         // TODO: Cleanup, replicated var queueing?
                         return val;
                     }
+                } else {
+                    allSitesUp = false;
                 }
             }
-        } else {
+            //val is guaranteed to be empty here
+            if (allSitesUp) {
+                abortTransaction(op.getTransaction().getTransactionId());
+                return Optional.empty();
+            }
+            for (DataManager dm : dataManagers) {
+                if (!this.siteActiveStatus.get(dm.getSiteId())) {
+                    this.waitingOperations.get(dm.getSiteId()).add(op);
+                    op.incrementNumQueuedSites();
+                }
+            }
+        } else { //unreplicated
             DataManager dm = dataManagers.get(0);
 
             if (this.siteActiveStatus.get(dm.getSiteId())) {
@@ -175,8 +189,35 @@ public class TransactionManagerImpl implements TransactionManager {
     @Override
     public void recover(int siteId) {
         // TODO: check for waiting operations!
-        if (this.siteActiveStatus.get(siteId)) {
-            return;
+        assert !this.siteActiveStatus.get(siteId) : "Cannot call recover on a site that is currently up!";
+
+        DataManager dm = siteToDataManagerMap.get(siteId);
+        for (Operation pendingOperation : this.waitingOperations.get(siteId)) {
+            if (pendingOperation.getOperationType().equals(OperationType.READ)) {
+                ReadOperation pendingReadOperation = ((ReadOperation) pendingOperation); // casting here :/
+                if (pendingReadOperation.isExecuted()) { // Operation done
+                    continue;
+                }
+                Transaction transaction = pendingOperation.getTransaction();
+                Optional<Integer> val = dm.read(pendingReadOperation);
+                if (val.isPresent()) {
+                    pendingReadOperation.setExecutedTimestamp(TimeManager.getTime());
+                    logger.info(
+                            String.format("x%d: %d (T%d)",
+                                    pendingReadOperation.getVariableId(),
+                                    val.get(),
+                                    pendingReadOperation.getTransaction().getTransactionId()
+                            )
+                    );
+                }
+                pendingReadOperation.decrementNumQueuedSites();
+                if (!pendingReadOperation.isExecuted() && pendingReadOperation.getNumQueuedSites() == 0) {
+                    abortTransaction(transaction.getTransactionId());
+                }
+            } else if (pendingOperation.getOperationType().equals(OperationType.WRITE)) {
+                WriteOperation pendingWriteOperation = ((WriteOperation) pendingOperation);
+                dm.write(pendingWriteOperation);
+            }
         }
         logger.info("Recovering site "+siteId);
         this.siteActiveStatus.put(siteId, true);
