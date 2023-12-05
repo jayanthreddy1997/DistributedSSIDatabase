@@ -2,6 +2,7 @@ package com.nyu.db.datamanager;
 
 import com.nyu.db.model.CommitOperation;
 import com.nyu.db.model.ReadOperation;
+import com.nyu.db.model.Transaction;
 import com.nyu.db.model.WriteOperation;
 
 import java.util.Set;

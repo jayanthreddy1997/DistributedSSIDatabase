@@ -97,10 +97,10 @@ public class DataManagerImpl implements DataManager {
         long transactionStartTime = transaction.getStartTimestamp();
         List<VariableSnapshot> versions = this.committedSnapshots.get(op.getVariableId());
         int i = versions.size()-1;
-        long lastTransactionCommitTime = versions.get(i).getCommitTimestamp();
-        while(i>0 && lastTransactionCommitTime>transactionStartTime) {
+        while(i>0 && versions.get(i).getCommitTimestamp()>transactionStartTime) {
             i--;
         }
+        long lastTransactionCommitTime = versions.get(i).getCommitTimestamp();
         if (runConsistencyChecks) {
             if (!canServeRead(op, transaction, lastTransactionCommitTime))
                 return Optional.empty();
