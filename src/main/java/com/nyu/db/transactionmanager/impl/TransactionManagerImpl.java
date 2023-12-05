@@ -228,6 +228,13 @@ public class TransactionManagerImpl implements TransactionManager {
             return false;
         }
         long transactionId = op.getTransaction().getTransactionId();
+        //check if any of the transaction's operations are not executed. If so, abort
+        for (Operation transactionOp : op.getTransaction().getOperations()) {
+            if (!transactionOp.equals(op) && !op.isExecuted()) {
+                abortTransaction(transactionId);
+                return false;
+            }
+        }
         boolean precommitStatus = true;
         for (int site: this.siteToActiveWriteTransactions.keySet()) {
             if (this.siteToActiveWriteTransactions.get(site).contains(transactionId)) {
