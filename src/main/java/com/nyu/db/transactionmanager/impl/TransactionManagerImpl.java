@@ -49,7 +49,7 @@ public class TransactionManagerImpl implements TransactionManager {
 
     @Override
     public Transaction createTransaction(long transactionId) {
-        Transaction t = new Transaction(transactionId, TimeManager.getTime(), new ArrayList<>());
+        Transaction t = new Transaction(transactionId);
         this.transactionStore.put(transactionId, t);
         this.activeTransactions.add(transactionId);
         return t;
@@ -99,7 +99,6 @@ public class TransactionManagerImpl implements TransactionManager {
                     val = dm.read(op);
                     if (val.isPresent()) {
                         op.setExecutedTimestamp(TimeManager.getTime());
-                        logger.info(String.format("x%d: %d (T%d)", op.getVariableId(), val.get(), op.getTransaction().getTransactionId()));
                         // TODO: Cleanup, replicated var queueing?
                         return val;
                     }
@@ -131,10 +130,9 @@ public class TransactionManagerImpl implements TransactionManager {
                 this.waitingOperations.get(dm.getSiteId()).add(op);
             }
         }
-        val.ifPresentOrElse(
-            varVal -> logger.info(String.format("x%d: %d (T%d)", op.getVariableId(), varVal, op.getTransaction().getTransactionId())),
-            () -> logger.info(String.format(op + " put on wait since site is down"))
-        );
+        if (val.isEmpty())
+            logger.info(String.format(op + " put on wait since site is down"));
+
         return val;
     }
 
@@ -258,6 +256,7 @@ public class TransactionManagerImpl implements TransactionManager {
         }
 
         logger.info("T"+transactionId+(commitStatus?" commits":" aborts"));
+        op.getTransaction().setCommitTimestamp(TimeManager.getTime());
         cleanupTransaction(transactionId);
         return commitStatus;
     }

@@ -23,14 +23,30 @@ public class SerializationGraph {
     }
 
     public boolean addTransactionAndRunChecks(Transaction transaction) {
-        // TODO: add transaction to graph
+        this.addTransaction(transaction);
 
         boolean consistent = this.checkCycle();
         if (!consistent) {
             logger.info("Detected cycle with 2 consecutive RW edges upon adding T"+transaction.getTransactionId()+"to serialization graph.");
-            // TODO: remove transaction from graph
+            this.removeTransaction(transaction);
         }
         return consistent;
+    }
+
+    private void addTransaction(Transaction transaction) {
+        if (this.graph.isEmpty()) {
+            this.graph.put(transaction.getTransactionId(), new HashMap<>());
+        } else {
+            // Reads are at transaction start time
+            // writes are at commit time
+            for (long transactionId: graph.keySet()) {
+//                for
+            }
+        }
+    }
+
+    private void removeTransaction(Transaction transaction) {
+        // TODO: remove transaction from graph
     }
 
     /**

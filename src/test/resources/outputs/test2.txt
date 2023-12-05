@@ -1,5 +1,6 @@
 Starting simulation with input from src/test/resources/inputs/test2.txt
 T1 wrote 101 to x1 on site 2
+x2: 20 (T2)
 T1 wrote 102 to x2 on site 1
 T1 wrote 102 to x2 on site 2
 T1 wrote 102 to x2 on site 3

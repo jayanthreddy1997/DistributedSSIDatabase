@@ -105,7 +105,10 @@ public class DataManagerImpl implements DataManager {
             if (!canServeRead(op, transaction, lastTransactionCommitTime))
                 return Optional.empty();
         }
-        return Optional.of(versions.get(i).getValue());
+
+        int val = versions.get(i).getValue();
+        logger.info(String.format("x%d: %d (T%d, site %d)", op.getVariableId(), val, transaction.getTransactionId(), this.siteId));
+        return Optional.of(val);
     }
 
     @Override
