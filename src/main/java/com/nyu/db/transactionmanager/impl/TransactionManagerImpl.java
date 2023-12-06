@@ -101,6 +101,7 @@ public class TransactionManagerImpl implements TransactionManager {
             }
             if (val.isEmpty()) {
                 if (allSitesUp) {
+                    logger.info("All sites are up but none can serve the read "+op);
                     abortTransaction(op.getTransaction().getTransactionId());
                     return Optional.empty();
                 }
@@ -233,8 +234,7 @@ public class TransactionManagerImpl implements TransactionManager {
         }
         precommitStatus = precommitStatus && this.serializationGraph.addTransactionAndRunChecks(op.getTransaction());
         if (!precommitStatus) {
-            logger.info("T"+transactionId+" aborts");
-            cleanupTransaction(transactionId);
+            abortTransaction(transactionId);
             return false;
         }
 
