@@ -99,14 +99,13 @@ public class TransactionManagerImpl implements TransactionManager {
                     val = dm.read(op);
                     if (val.isPresent()) {
                         op.setExecutedTimestamp(TimeManager.getTime());
-                        // TODO: Cleanup, replicated var queueing?
                         return val;
                     }
                 } else {
                     allSitesUp = false;
                 }
             }
-            //val is guaranteed to be empty here
+            // val is guaranteed to be empty here
             if (allSitesUp) {
                 abortTransaction(op.getTransaction().getTransactionId());
                 return Optional.empty();
@@ -116,7 +115,7 @@ public class TransactionManagerImpl implements TransactionManager {
                     this.waitingOperations.get(dm.getSiteId()).add(op);
                 }
             }
-        } else { //unreplicated
+        } else { // unreplicated
             DataManager dm = dataManagers.get(0);
 
             if (this.siteActiveStatus.get(dm.getSiteId())) {
@@ -187,12 +186,12 @@ public class TransactionManagerImpl implements TransactionManager {
 
     @Override
     public void recover(int siteId) {
-        // TODO: check for waiting operations!
         assert !this.siteActiveStatus.get(siteId) : "Cannot call recover on a site that is currently up!";
         DataManager dm = siteToDataManagerMap.get(siteId);
         logger.info("Recovering site "+siteId);
         this.siteActiveStatus.put(siteId, true);
         dm.recover();
+        // TODO: gotta dequeue?
         for (Operation pendingOperation : this.waitingOperations.get(siteId)) {
             if (pendingOperation.getOperationType().equals(OperationType.READ)) {
                 ReadOperation pendingReadOperation = ((ReadOperation) pendingOperation); // casting here :/
@@ -219,6 +218,7 @@ public class TransactionManagerImpl implements TransactionManager {
         //check if any of the transaction's operations are not executed. If so, abort
         for (Operation transactionOp : op.getTransaction().getOperations()) {
             if (!transactionOp.equals(op) && !transactionOp.isExecuted()) {
+                logger.info(String.format("Aborting T%d since no site was able to serve %s", transactionId, transactionOp));
                 abortTransaction(transactionId);
                 return false;
             }
