@@ -1,6 +1,5 @@
 package com.nyu.db.transactionmanager.impl;
 
-import com.nyu.db.Simulation;
 import com.nyu.db.datamanager.DataManager;
 import com.nyu.db.model.*;
 import com.nyu.db.transactionmanager.SerializationGraph;
@@ -17,7 +16,6 @@ public class TransactionManagerImpl implements TransactionManager {
     private Map<Integer, DataManager> siteToDataManagerMap;
     private Map<Integer, List<DataManager>> variableToDataManagerMap;
     private Map<Long, Transaction> transactionStore; // transactionId to transaction object
-    private Set<Integer> replicatedVariables; // TODO: redundant
     private Map<Integer, Boolean> siteActiveStatus;
     private Map<Integer, Queue<Operation>> waitingOperations; // Waiting operations on each site
 
@@ -28,7 +26,6 @@ public class TransactionManagerImpl implements TransactionManager {
 
     private void init() {
         this.siteToDataManagerMap = new HashMap<>();
-        this.replicatedVariables = new HashSet<>();
         this.variableToDataManagerMap = new HashMap<>();
         this.siteActiveStatus = new HashMap<>();
         this.waitingOperations = new HashMap<>();
@@ -69,10 +66,6 @@ public class TransactionManagerImpl implements TransactionManager {
             this.siteActiveStatus.put(dm.getSiteId(), true);
             this.waitingOperations.put(dm.getSiteId(), new LinkedList<>());
         }
-        for (Map.Entry<Integer, List<DataManager>> e: this.variableToDataManagerMap.entrySet()) {
-            if (e.getValue().size()>1)
-                this.replicatedVariables.add(e.getKey());
-        }
     }
 
     /**
@@ -92,7 +85,8 @@ public class TransactionManagerImpl implements TransactionManager {
         }
 
         Optional<Integer> val = Optional.empty();
-        if (this.replicatedVariables.contains(op.getVariableId())) {
+        if (dataManagers.size()>1) {
+            // Replicated Variable
             boolean allSitesUp = true;
             for (DataManager dm: dataManagers) {
                 if (this.siteActiveStatus.get(dm.getSiteId())) {
@@ -105,17 +99,19 @@ public class TransactionManagerImpl implements TransactionManager {
                     allSitesUp = false;
                 }
             }
-            // val is guaranteed to be empty here
-            if (allSitesUp) {
-                abortTransaction(op.getTransaction().getTransactionId());
-                return Optional.empty();
-            }
-            for (DataManager dm : dataManagers) {
-                if (!this.siteActiveStatus.get(dm.getSiteId())) {
-                    this.waitingOperations.get(dm.getSiteId()).add(op);
+            if (val.isEmpty()) {
+                if (allSitesUp) {
+                    abortTransaction(op.getTransaction().getTransactionId());
+                    return Optional.empty();
+                }
+                for (DataManager dm : dataManagers) {
+                    if (!this.siteActiveStatus.get(dm.getSiteId())) {
+                        this.waitingOperations.get(dm.getSiteId()).add(op);
+                    }
                 }
             }
-        } else { // unreplicated
+        } else {
+            // UnReplicated variable
             DataManager dm = dataManagers.get(0);
 
             if (this.siteActiveStatus.get(dm.getSiteId())) {
@@ -186,16 +182,17 @@ public class TransactionManagerImpl implements TransactionManager {
 
     @Override
     public void recover(int siteId) {
-        assert !this.siteActiveStatus.get(siteId) : "Cannot call recover on a site that is currently up!";
+        if (this.siteActiveStatus.get(siteId)) {
+            return;
+        }
         DataManager dm = siteToDataManagerMap.get(siteId);
         logger.info("Recovering site "+siteId);
         this.siteActiveStatus.put(siteId, true);
         dm.recover();
-        // TODO: gotta dequeue?
         for (Operation pendingOperation : this.waitingOperations.get(siteId)) {
             if (pendingOperation.getOperationType().equals(OperationType.READ)) {
-                ReadOperation pendingReadOperation = ((ReadOperation) pendingOperation); // casting here :/
-                if (pendingReadOperation.isExecuted()) { // Operation done
+                ReadOperation pendingReadOperation = ((ReadOperation) pendingOperation);
+                if (pendingReadOperation.isExecuted()) {
                     continue;
                 }
                 Optional<Integer> val = dm.read(pendingReadOperation);
@@ -207,6 +204,7 @@ public class TransactionManagerImpl implements TransactionManager {
                 dm.write(pendingWriteOperation);
             }
         }
+        this.waitingOperations.get(siteId).clear();
     }
 
     @Override

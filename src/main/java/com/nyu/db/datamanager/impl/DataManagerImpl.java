@@ -12,7 +12,6 @@ public class DataManagerImpl implements DataManager {
 
     private static final Logger logger = LoggerFactory.getLogger(DataManagerImpl.class);
     private final int siteId;
-    private boolean siteUp; // TODO: remove if not required
 
     private Map<Integer, List<VariableSnapshot>> committedSnapshots; // Multiple versions of committed values for every variable
 
@@ -22,7 +21,6 @@ public class DataManagerImpl implements DataManager {
 
     public DataManagerImpl(int siteId){
         this.siteId = siteId;
-        this.siteUp = true;
         this.committedSnapshots = new HashMap<>();
         this.bootTimes = new ArrayList<>();
         this.downTimes = new ArrayList<>();
@@ -115,11 +113,6 @@ public class DataManagerImpl implements DataManager {
 
     @Override
     public boolean write(WriteOperation op) {
-        assert this.bootTimes.size()==this.downTimes.size(); // Otherwise site would be down
-
-        if (!this.siteUp) {
-            return false;
-        }
         long transactionId = op.getTransaction().getTransactionId();
         if (!this.transactionDataStore.containsKey(transactionId)) {
             this.transactionDataStore.put(transactionId, new HashMap<>());
@@ -166,14 +159,12 @@ public class DataManagerImpl implements DataManager {
     public void fail() {
         // Flush local store
         this.transactionDataStore.clear();
-        this.siteUp = false;
         this.downTimes.add(TimeManager.getTime());
     }
 
     @Override
     public void recover() {
         this.bootTimes.add(TimeManager.getTime());
-        this.siteUp = true;
     }
 
     @Override
