@@ -1,0 +1,17 @@
+Starting simulation with input from src/test/resources/inputs/test29.txt
+Failing site 1
+Failing site 2
+Failing site 3
+Failing site 4
+Failing site 5
+Failing site 7
+Failing site 8
+Failing site 9
+Failing site 10
+T1 wrote 22 to x2 on site 6
+T1 commits
+Failing site 6
+Recovering site 6
+x2: 22 (T2, site 6)
+T2 commits
+Simulation complete!
