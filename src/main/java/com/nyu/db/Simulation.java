@@ -54,6 +54,7 @@ public class Simulation {
         try (BufferedReader br = new BufferedReader(new FileReader(inputFilePath))) {
             String token;
             while ((token = br.readLine()) != null) {
+                token = token.trim();
                 if (token.isEmpty() || token.startsWith("//"))
                     continue;
                 if (token.contains("//"))
