@@ -11,11 +11,9 @@ import java.util.*;
 public class DataManagerImpl implements DataManager {
 
     private static final Logger logger = LoggerFactory.getLogger(DataManagerImpl.class);
-    private int siteId;
-    private boolean siteUp; // TODO: remove if not required
+    private final int siteId;
 
-    // Multiple versions of committed values for every variable
-    private Map<Integer, List<VariableSnapshot>> committedSnapshots;
+    private Map<Integer, List<VariableSnapshot>> committedSnapshots; // Multiple versions of committed values for every variable
 
     private Map<Long, Map<Integer, Integer>> transactionDataStore; // Uncommitted data for each transaction
     private List<Long> bootTimes; // Time instant at which the site came back up from a down state
@@ -23,7 +21,6 @@ public class DataManagerImpl implements DataManager {
 
     public DataManagerImpl(int siteId){
         this.siteId = siteId;
-        this.siteUp = true;
         this.committedSnapshots = new HashMap<>();
         this.bootTimes = new ArrayList<>();
         this.downTimes = new ArrayList<>();
@@ -52,14 +49,51 @@ public class DataManagerImpl implements DataManager {
         return read(op, true);
     }
 
+    private boolean canServeRead(ReadOperation op, Transaction transaction, long lastTransactionCommitTime) {
+        long transactionStartTime = transaction.getStartTimestamp();
+
+        // Check 1: Fail if site went down between last commit and beginning of current transaction, unless the
+        //          current transaction wrote and the site has this latest uncommitted write
+        for (long downTime: this.downTimes) {
+            if (downTime>=lastTransactionCommitTime && downTime<=transactionStartTime) {
+                return false;
+            }
+        }
+        List<SymbolOperation> operations = transaction.getOperations();
+        long latestWriteTimestamp = -1;
+        // Check 2: If a site goes down after the transaction began, don't respond to reads until we see a
+        //          write (if the transactions contains writes)
+        for (int j=operations.size()-1; j>=0; j--) {
+            Operation operation = operations.get(j);
+            if (operation.getOperationType().equals(OperationType.WRITE) &&
+                    ((WriteOperation)operation).getVariableId()==op.getVariableId()) {
+                latestWriteTimestamp = operation.getExecutedTimestamp();
+                break;
+            }
+        }
+        if (latestWriteTimestamp!=-1) {
+            for (int k=0; k<bootTimes.size(); k++) {
+                if (latestWriteTimestamp>downTimes.get(k) && latestWriteTimestamp<bootTimes.get(k)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     @Override
     public Optional<Integer> read(ReadOperation op, boolean runConsistencyChecks) {
         assert this.bootTimes.size()==this.downTimes.size(); // Otherwise site would be down
 
         // If uncommitted write exists in same transaction, return that value
         Transaction transaction = op.getTransaction();
-        if (this.transactionDataStore.get(transaction.getTransactionId()).containsKey(op.getVariableId()))
-            return Optional.of(this.transactionDataStore.get(transaction.getTransactionId()).get(op.getVariableId()));
+        if (this.transactionDataStore.containsKey(transaction.getTransactionId()) &&
+                this.transactionDataStore.get(transaction.getTransactionId()).containsKey(op.getVariableId())) {
+            int val = this.transactionDataStore.get(transaction.getTransactionId()).get(op.getVariableId());
+            logger.info(String.format("x%d: %d (T%d, site %d)", op.getVariableId(), val, transaction.getTransactionId(), this.siteId));
+            return Optional.of(val);
+        }
+
 
         long transactionStartTime = transaction.getStartTimestamp();
         List<VariableSnapshot> versions = this.committedSnapshots.get(op.getVariableId());
@@ -67,49 +101,18 @@ public class DataManagerImpl implements DataManager {
         while(i>0 && versions.get(i).getCommitTimestamp()>transactionStartTime) {
             i--;
         }
-
-        if (runConsistencyChecks) {
-            // Check 1: Fail if site went down between last commit and beginning of current transaction, unless the
-            //          current transaction wrote and the site has this latest uncommitted write
-            long lastTransactionCommitTime = versions.get(i).getCommitTimestamp();
-            for (long downTime: this.downTimes) {
-                if (downTime>=lastTransactionCommitTime && downTime<=transactionStartTime) {
-                    return Optional.empty();
-                }
-            }
-
-            // Check 2: If a site goes down after the transaction began, don't respond to reads until we see a
-            //          write (if the transactions contains writes)
-
-            List<Operation> operations = transaction.getOperations();
-            long latestWriteTimestamp = -1;
-            for (int j=operations.size()-1; j>=0; j--) {
-                Operation operation = operations.get(j);
-                if (operation.getOperationType().equals(OperationType.WRITE) &&
-                        ((WriteOperation)operation).getVariableId()==op.getVariableId()) {
-                    latestWriteTimestamp = operation.getExecutedTimestamp();
-                    break;
-                }
-            }
-            if (latestWriteTimestamp!=-1) {
-                for (int k=0; k<bootTimes.size(); k++) {
-                    if (latestWriteTimestamp>downTimes.get(k) && latestWriteTimestamp<bootTimes.get(k)) {
-                        return Optional.empty();
-                    }
-                }
-            }
+        long lastTransactionCommitTime = versions.get(i).getCommitTimestamp();
+        if (runConsistencyChecks && !canServeRead(op, transaction, lastTransactionCommitTime)) {
+            return Optional.empty();
         }
 
-        return Optional.of(versions.get(i).getValue());
+        int val = versions.get(i).getValue();
+        logger.info(String.format("x%d: %d (T%d, site %d)", op.getVariableId(), val, transaction.getTransactionId(), this.siteId));
+        return Optional.of(val);
     }
 
     @Override
     public boolean write(WriteOperation op) {
-        assert this.bootTimes.size()==this.downTimes.size(); // Otherwise site would be down
-
-        if (!this.siteUp) {
-            return false;
-        }
         long transactionId = op.getTransaction().getTransactionId();
         if (!this.transactionDataStore.containsKey(transactionId)) {
             this.transactionDataStore.put(transactionId, new HashMap<>());
@@ -121,8 +124,8 @@ public class DataManagerImpl implements DataManager {
     }
 
     @Override
-    public boolean abort(long transactionId) {
-        return false;
+    public void abortTransaction(long transactionId) {
+        this.transactionDataStore.remove(transactionId);
     }
 
     @Override
@@ -137,6 +140,8 @@ public class DataManagerImpl implements DataManager {
             long lastCommittedTimestamp = this.committedSnapshots.get(variableId).get(this.committedSnapshots.get(variableId).size()-1).getCommitTimestamp();
             if (lastCommittedTimestamp > transactionStartTime) {
                 commitStatus = false;
+                logger.info(String.format("Variable x%d written to by T%d has been committed to by some other transaction since T%d began (First Committer wins rule)",
+                        variableId, op.getTransaction().getTransactionId(), op.getTransaction().getTransactionId()));
                 break;
             }
         }
@@ -156,23 +161,26 @@ public class DataManagerImpl implements DataManager {
     public void fail() {
         // Flush local store
         this.transactionDataStore.clear();
-        this.siteUp = false;
+        this.downTimes.add(TimeManager.getTime());
     }
 
     @Override
-    public void recover(long timestamp) {
-        this.bootTimes.add(timestamp);
-        this.siteUp = true;
+    public void recover() {
+        this.bootTimes.add(TimeManager.getTime());
     }
 
     @Override
     public void printCommittedState() {
         List<Integer> variableIds = new ArrayList<>(this.getManagedVariableIds());
         Collections.sort(variableIds);
-        for (int variableId: variableIds) {
+        for (int v=0; v<variableIds.size(); ++v) {
+            int variableId = variableIds.get(v);
             List<VariableSnapshot> versions = this.committedSnapshots.get(variableId);
             int lastCommittedValue = versions.get(versions.size()-1).getValue();
-            System.out.printf("x%d: %d, ", variableId, lastCommittedValue);
+            if (v == (variableIds.size() - 1))
+                System.out.printf("x%d: %d", variableId, lastCommittedValue);
+            else
+                System.out.printf("x%d: %d, ", variableId, lastCommittedValue);
         }
         System.out.println();
     };

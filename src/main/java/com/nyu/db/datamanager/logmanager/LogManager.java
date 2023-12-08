@@ -3,6 +3,7 @@ package com.nyu.db.datamanager.logmanager;
 import com.nyu.db.model.LogEntry;
 
 /**
+ * Code not used currently
  * Manages Log Buffer(in-memory) and Log(stable storage)
  */
 public interface LogManager {

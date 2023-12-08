@@ -47,6 +47,10 @@ public class Simulation {
         this.transactionManager = new TransactionManagerImpl(dataManagers);
     }
 
+    /**
+     * Takes a file path as input and runs the simulation
+     * @param inputFilePath Path to the input file
+     */
     public void run(String inputFilePath) {
         logger.info("Starting simulation with input from "+inputFilePath);
         this.initializeDatabaseManagers();
@@ -54,6 +58,7 @@ public class Simulation {
         try (BufferedReader br = new BufferedReader(new FileReader(inputFilePath))) {
             String token;
             while ((token = br.readLine()) != null) {
+                token = token.trim();
                 if (token.isEmpty() || token.startsWith("//"))
                     continue;
                 if (token.contains("//"))
@@ -69,30 +74,28 @@ public class Simulation {
                     }
                     this.transactionManager.createTransaction(Long.parseLong(transactionName.substring(1)));
                 } else if (token.startsWith("W") || token.startsWith("R") || token.startsWith("end")) {
-                    long transactionId = Long.parseLong(params[0].trim().substring(1));
+                    String transactionName = params[0].trim();
+                    if (!transactionName.startsWith("T")) {
+                        String errMsg = "Transaction names are required to start with T followed by an integer";
+                        logger.error(errMsg);
+                        throw new RuntimeException(errMsg);
+                    }
+                    long transactionId = Long.parseLong(transactionName.substring(1));
                     Transaction transaction = this.transactionManager.getTransaction(transactionId);
                     if (token.startsWith("W")) {
                         int variableId = Integer.parseInt(params[1].trim().substring(1));
                         int value = Integer.parseInt(params[2].trim());
                         WriteOperation op = new WriteOperation(transaction, variableId, value, TimeManager.getTime());
                         transaction.getOperations().add(op);
-                        boolean writeStatus = this.transactionManager.write(op);
-                        if (!writeStatus) {
-                            logger.info(String.format("W(T%d, x%d, %d) put on wait since site is down", transactionId, variableId, value));
-                        }
+                        this.transactionManager.write(op);
                     } else if (token.startsWith("R")) {
                         int variableId = Integer.parseInt(params[1].trim().substring(1));
                         ReadOperation op = new ReadOperation(transaction, variableId, TimeManager.getTime());
                         transaction.getOperations().add(op);
-                        Optional<Integer> val = this.transactionManager.read(op);
-                        val.ifPresentOrElse(
-                                integer -> logger.info(String.format("x%d: %d (T%d)", variableId, integer, transactionId)),
-                                () -> logger.info(String.format("R(T%d, x%d) put on wait since site is down", transactionId, variableId))
-                        );
+                        this.transactionManager.read(op);
                     } else if (token.startsWith("end")) {
                         CommitOperation op = new CommitOperation(transaction, TimeManager.getTime());
-                        boolean status = this.transactionManager.commitTransaction(op);
-                        logger.info("T"+transactionId+(status?" commits":" aborts"));
+                        this.transactionManager.commitTransaction(op);
                     }
                 } else if (token.equals("dump()")) {
                     this.transactionManager.printCommittedState();

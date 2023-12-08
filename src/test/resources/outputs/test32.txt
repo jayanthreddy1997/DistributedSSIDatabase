@@ -1,0 +1,27 @@
+Starting simulation with input from src/test/resources/inputs/test32.txt
+Failing site 1
+Failing site 2
+Failing site 3
+Failing site 4
+Failing site 6
+Failing site 7
+Failing site 8
+Failing site 9
+Failing site 10
+T1 wrote 11 to x4 on site 5
+Recovering site 1
+Recovering site 2
+Failing site 5
+Aborting T1 since it wrote to site 5 that went down before T1 committed
+T1 aborts
+Recovering site 3
+Recovering site 4
+Recovering site 6
+Recovering site 7
+Recovering site 8
+Recovering site 9
+Recovering site 10
+R(T1, x4) received operation on transaction that has either already aborted or committed
+Recovering site 5
+end(T1) received operation on transaction that has either already aborted or committed
+Simulation complete!

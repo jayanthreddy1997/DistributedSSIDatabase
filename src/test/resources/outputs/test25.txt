@@ -1,0 +1,33 @@
+Starting simulation with input from src/test/resources/inputs/test25.txt
+Failing site 3
+Failing site 4
+x1: 10 (T1, site 2)
+T2 wrote 88 to x8 on site 1
+T2 wrote 88 to x8 on site 2
+T2 wrote 88 to x8 on site 5
+T2 wrote 88 to x8 on site 6
+T2 wrote 88 to x8 on site 7
+T2 wrote 88 to x8 on site 8
+T2 wrote 88 to x8 on site 9
+T2 wrote 88 to x8 on site 10
+T1 commits
+Recovering site 4
+Recovering site 3
+x3: 30 (T2, site 4)
+T2 commits
+Failing site 1
+Failing site 5
+Failing site 6
+Failing site 7
+Failing site 8
+Failing site 9
+Failing site 10
+Failing site 2
+T4 wrote 99 to x8 on site 3
+T4 wrote 99 to x8 on site 4
+T4 commits
+R(T3, x8) put on wait
+Recovering site 2
+x8: 88 (T3, site 2)
+T3 commits
+Simulation complete!

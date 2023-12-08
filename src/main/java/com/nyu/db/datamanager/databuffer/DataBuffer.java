@@ -4,6 +4,9 @@ import com.nyu.db.model.DataEntry;
 
 import java.util.List;
 
+/**
+ * Code not used currently
+ */
 public interface DataBuffer {
 
     public List<DataEntry> getAllData(long uptoTimestamp);

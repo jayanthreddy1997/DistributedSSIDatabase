@@ -1,6 +1,9 @@
 package com.nyu.db.utils;
 
 
+/**
+ * Class to get current timestamp
+ */
 public class TimeManager {
     private static long time = 0;
 
