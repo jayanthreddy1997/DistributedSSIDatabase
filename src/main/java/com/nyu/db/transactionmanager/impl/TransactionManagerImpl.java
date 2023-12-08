@@ -99,7 +99,7 @@ public class TransactionManagerImpl implements TransactionManager {
                     allSitesUp = false;
                 }
             }
-            if (val.isEmpty()) {
+            if (!val.isPresent()) {
                 if (allSitesUp) {
                     logger.info("All sites are up but none can serve the read "+op);
                     abortTransaction(op.getTransaction().getTransactionId());
@@ -125,7 +125,7 @@ public class TransactionManagerImpl implements TransactionManager {
                 this.waitingOperations.get(dm.getSiteId()).add(op);
             }
         }
-        if (val.isEmpty())
+        if (!val.isPresent())
             logger.info(String.format(op + " put on wait"));
 
         return val;
