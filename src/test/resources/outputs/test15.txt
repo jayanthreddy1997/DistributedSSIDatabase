@@ -54,8 +54,11 @@ T5 wrote 77 to x4 on site 9
 T5 wrote 77 to x4 on site 10
 end(T1) received operation on transaction that has either already aborted or committed
 T2 commits
+Variable x4 written to by T3 has been committed to by some other transaction since T3 began (First Committer wins rule)
 T3 aborts
+Variable x4 written to by T4 has been committed to by some other transaction since T4 began (First Committer wins rule)
 T4 aborts
+Variable x4 written to by T5 has been committed to by some other transaction since T5 began (First Committer wins rule)
 T5 aborts
 site 1 - x2: 20, x4: 44, x6: 60, x8: 80, x10: 100, x12: 120, x14: 140, x16: 160, x18: 180, x20: 200
 site 2 - x1: 10, x2: 20, x4: 40, x6: 60, x8: 80, x10: 100, x11: 110, x12: 120, x14: 140, x16: 160, x18: 180, x20: 200

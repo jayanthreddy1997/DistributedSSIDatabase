@@ -47,6 +47,10 @@ public class Simulation {
         this.transactionManager = new TransactionManagerImpl(dataManagers);
     }
 
+    /**
+     * Takes a file path as input and runs the simulation
+     * @param inputFilePath Path to the input file
+     */
     public void run(String inputFilePath) {
         logger.info("Starting simulation with input from "+inputFilePath);
         this.initializeDatabaseManagers();

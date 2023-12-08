@@ -7,16 +7,24 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
+/**
+ * Serialisation graph for implementing Serializable snapshot isolation
+ */
 public class SerializationGraph {
 
     private static final Logger logger = LoggerFactory.getLogger(SerializationGraph.class);
 
-    private Map<Transaction, Set<Transaction>> graph;
+    private Map<Transaction, Set<Transaction>> graph;  // Adjacency list representation of graph
 
     public SerializationGraph() {
         this.graph = new HashMap<>();
     }
 
+    /**
+     * Adds the transaction to serialization graph, checks for cycle. If cycle is detected, removes the transaction from graph
+     * @param transaction Transaction
+     * @return true if no cycle was detected and transaction was added to serialization graph, false otherwise
+     */
     public boolean addTransactionAndRunChecks(Transaction transaction) {
         this.addTransaction(transaction);
 
@@ -28,6 +36,10 @@ public class SerializationGraph {
         return !cycleExists;
     }
 
+    /**
+     * Add transaction to serialization graph
+     * @param t1 Transaction
+     */
     private void addTransaction(Transaction t1) {
         this.graph.put(t1, new HashSet<>());
 
@@ -63,6 +75,10 @@ public class SerializationGraph {
         }
     }
 
+    /**
+     * Remove transaction to serialization graph
+     * @param transaction Transaction
+     */
     private void removeTransaction(Transaction transaction) {
         this.graph.forEach((t, m) -> m.remove(transaction));
         this.graph.remove(transaction);
@@ -81,6 +97,11 @@ public class SerializationGraph {
 
         return false;
     }
+
+    /**
+     * Depth-First-Search to detect cycle in the graph
+     * @return true if cycle detected, false otherwise
+     */
     private boolean dfs(Transaction transaction, Set<Transaction> recStack, Set<Transaction> visited) {
         if (recStack.contains(transaction))
             return true;
