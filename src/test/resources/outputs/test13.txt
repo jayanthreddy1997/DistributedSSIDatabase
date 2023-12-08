@@ -30,7 +30,9 @@ T1 wrote 30 to x2 on site 8
 T1 wrote 30 to x2 on site 9
 T1 wrote 30 to x2 on site 10
 T3 commits
+Variable x2 written to by T2 has been committed to by some other transaction since T2 began (First Committer wins rule)
 T2 aborts
+Variable x2 written to by T1 has been committed to by some other transaction since T1 began (First Committer wins rule)
 T1 aborts
 site 1 - x2: 10, x4: 40, x6: 60, x8: 80, x10: 100, x12: 120, x14: 140, x16: 160, x18: 180, x20: 200
 site 2 - x1: 10, x2: 10, x4: 40, x6: 60, x8: 80, x10: 100, x11: 110, x12: 120, x14: 140, x16: 160, x18: 180, x20: 200

@@ -140,6 +140,8 @@ public class DataManagerImpl implements DataManager {
             long lastCommittedTimestamp = this.committedSnapshots.get(variableId).get(this.committedSnapshots.get(variableId).size()-1).getCommitTimestamp();
             if (lastCommittedTimestamp > transactionStartTime) {
                 commitStatus = false;
+                logger.info(String.format("Variable x%d written to by T%d has been committed to by some other transaction since T%d began (First Committer wins rule)",
+                        variableId, op.getTransaction().getTransactionId(), op.getTransaction().getTransactionId()));
                 break;
             }
         }
